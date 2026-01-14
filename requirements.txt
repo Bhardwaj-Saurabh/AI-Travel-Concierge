@@ -1,0 +1,16 @@
+# Core dependencies
+python-dotenv
+requests
+pydantic
+tiktoken
+
+# Azure services
+azure-identity
+azure-cosmos
+azure-ai-projects
+
+# Semantic Kernel
+semantic-kernel
+
+# Testing
+pytest
