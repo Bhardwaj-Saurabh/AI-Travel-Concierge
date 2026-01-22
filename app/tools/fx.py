@@ -3,34 +3,38 @@ from semantic_kernel.functions import kernel_function
 import requests
 
 class FxTools:
-    @kernel_function(name="convert_fx", description="Convert currency using Frankfurter API")
+    @kernel_function(name="convert_fx", description="Convert currency from base to target using Frankfurter API")
     def convert_fx(self, amount: float, base: str, target: str):
         """
         Convert currency using Frankfurter API.
-        
-        TODO: Implement currency conversion using Frankfurter API
-        - Use the Frankfurter API: https://api.frankfurter.app/latest
-        - Convert from base currency to target currency
-        - Handle API errors gracefully
-        - Return conversion data including rates
-        
-        Hint: Use requests.get() with proper error handling
+
+        Args:
+            amount: Amount to convert
+            base: Base currency code (e.g., 'USD')
+            target: Target currency code (e.g., 'EUR')
+
+        Returns:
+            Dictionary containing conversion data with rates and converted amount
         """
-        # TODO: Implement currency conversion API call
-        # This is a placeholder - replace with actual implementation
         try:
-            # TODO: Construct API URL with parameters
-            # TODO: Make API request
-            # TODO: Handle response and errors
-            # TODO: Return conversion data as dictionary
-            
-            # Placeholder response
-            return {
+            # Construct API URL with parameters
+            base_url = f"https://api.frankfurter.app/latest"
+            params = {
                 "amount": amount,
-                "base": base,
-                "date": "2026-06-01",
-                "rates": {target: 0.85}  # Example rate
+                "from": base.upper(),
+                "to": target.upper()
             }
+
+            # Make API request
+            response = requests.get(base_url, params=params, timeout=10)
+            response.raise_for_status()
+
+            # Return conversion data
+            return response.json()
+
+        except requests.exceptions.Timeout:
+            return {"error": "Currency conversion API request timed out"}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Currency conversion API request failed: {str(e)}"}
         except Exception as e:
-            # TODO: Implement proper error handling
-            return {"error": str(e)}
+            return {"error": f"Unexpected error converting currency: {str(e)}"}

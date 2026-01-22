@@ -125,7 +125,14 @@ class MemoryUpdateFilter:
     
     def _is_important_result(self, function_name: str, result: Any) -> bool:
         """Determine if a result is important enough for long-term memory"""
-        important_functions = ["search_knowledge", "get_card_recommendation", "web_search"]
+        important_functions = [
+            "search_knowledge",
+            "get_card_recommendation",
+            "web_search",
+            "check_availability",      # Calendar conflicts and alternatives
+            "schedule_travel_event",   # Scheduled travel events
+            "get_travel_phrases"       # Translated phrasebooks
+        ]
         return function_name in important_functions
 
 class GuardrailsFilter:

@@ -3,39 +3,39 @@ from semantic_kernel.functions import kernel_function
 import requests
 
 class WeatherTools:
-    @kernel_function(name="get_weather", description="Get forecast from Open-Meteo")
+    @kernel_function(name="get_weather", description="Get 7-day weather forecast from Open-Meteo API for given coordinates")
     def get_weather(self, lat: float, lon: float):
         """
-        Get weather forecast for given coordinates.
-        
-        TODO: Implement weather data retrieval from Open-Meteo API
-        - Use the Open-Meteo API: https://api.open-meteo.com/v1/forecast
-        - Include daily weather data: weathercode, temperature_2m_max, temperature_2m_min
-        - Set forecast_days=7 and timezone=UTC
-        - Handle API errors gracefully
-        
-        Hint: Use requests.get() with proper error handling
+        Get weather forecast for given coordinates using Open-Meteo API.
+
+        Args:
+            lat: Latitude coordinate
+            lon: Longitude coordinate
+
+        Returns:
+            Dictionary containing weather forecast data with daily temperature and weather codes
         """
-        # TODO: Implement weather API call
-        # This is a placeholder - replace with actual implementation
         try:
-            # TODO: Construct API URL with parameters
-            # TODO: Make API request
-            # TODO: Handle response and errors
-            # TODO: Return weather data as dictionary
-            
-            # Placeholder response
-            return {
+            # Construct API URL with parameters
+            base_url = "https://api.open-meteo.com/v1/forecast"
+            params = {
                 "latitude": lat,
                 "longitude": lon,
-                "timezone": "UTC",
-                "daily": {
-                    "time": ["2026-06-01", "2026-06-02"],
-                    "temperature_2m_max": [25.0, 26.0],
-                    "temperature_2m_min": [15.0, 16.0],
-                    "weathercode": [1, 2]
-                }
+                "daily": "weathercode,temperature_2m_max,temperature_2m_min",
+                "forecast_days": 7,
+                "timezone": "UTC"
             }
+
+            # Make API request
+            response = requests.get(base_url, params=params, timeout=10)
+            response.raise_for_status()
+
+            # Return weather data
+            return response.json()
+
+        except requests.exceptions.Timeout:
+            return {"error": "Weather API request timed out"}
+        except requests.exceptions.RequestException as e:
+            return {"error": f"Weather API request failed: {str(e)}"}
         except Exception as e:
-            # TODO: Implement proper error handling
-            return {"error": str(e)}
+            return {"error": f"Unexpected error getting weather: {str(e)}"}

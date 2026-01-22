@@ -28,6 +28,9 @@ class EvaluationResult:
     reasoning: str
     recommendations: List[str]
     passed: bool
+    corrections: Optional[Dict[str, Any]] = None
+    tool_suggestions: Optional[List[Dict[str, str]]] = None
+    debugging_insights: Optional[Dict[str, Any]] = None
 
 class LLMJudge:
     """LLM-as-Judge evaluation system"""
@@ -321,3 +324,416 @@ class LLMJudge:
                 "average_score": 0.0,
                 "pass_rate": 0.0
             }
+
+    async def generate_corrections(
+        self,
+        user_query: str,
+        agent_response: str,
+        structured_output: Dict[str, Any],
+        evaluation_result: EvaluationResult
+    ) -> Dict[str, Any]:
+        """
+        Generate specific corrections for issues identified in evaluation.
+
+        Args:
+            user_query: Original user query
+            agent_response: Agent's response that needs correction
+            structured_output: Current structured output
+            evaluation_result: Results from evaluate_response()
+
+        Returns:
+            Dictionary containing corrected versions and explanations
+        """
+        try:
+            logger.info("🔧 Generating corrections for agent response")
+
+            # Create correction prompt
+            correction_prompt = f"""
+            You are an expert AI debugger helping to correct a Travel Concierge agent's response.
+
+            USER QUERY:
+            {user_query}
+
+            AGENT'S CURRENT RESPONSE:
+            {agent_response}
+
+            CURRENT STRUCTURED OUTPUT:
+            {json.dumps(structured_output, indent=2)}
+
+            EVALUATION SCORES:
+            - Overall Score: {evaluation_result.overall_score}/5.0
+            - Criteria Scores: {json.dumps(evaluation_result.criteria_scores, indent=2)}
+
+            IDENTIFIED ISSUES:
+            {evaluation_result.reasoning}
+
+            RECOMMENDATIONS:
+            {json.dumps(evaluation_result.recommendations, indent=2)}
+
+            Please provide specific corrections:
+            1. Corrected natural language response
+            2. Corrected structured output (JSON)
+            3. Explanation of what was wrong and how it was fixed
+            4. Line-by-line changes needed
+
+            Respond in JSON format:
+            {{
+                "corrected_response": "The improved natural language response...",
+                "corrected_structured_output": {{...}},
+                "issues_fixed": [
+                    {{
+                        "issue": "Description of what was wrong",
+                        "fix": "Description of the correction applied",
+                        "impact": "How this improves the response"
+                    }}
+                ],
+                "code_changes": [
+                    {{
+                        "location": "Where in the code this should be fixed",
+                        "current": "Current problematic code/logic",
+                        "corrected": "Corrected code/logic"
+                    }}
+                ]
+            }}
+            """
+
+            # Get LLM corrections
+            chat_service = self.kernel.get_service(type="ChatCompletionService")
+            response = await chat_service.get_chat_message_contents(
+                chat_history=ChatHistory.from_messages([("user", correction_prompt)]),
+                settings={"temperature": 0.2, "max_tokens": 2000}
+            )
+
+            # Parse corrections
+            corrections_text = response[0].content.strip()
+            corrections = self._parse_json_response(corrections_text)
+
+            logger.info("🔧 Corrections generated successfully")
+            return corrections
+
+        except Exception as e:
+            logger.error(f"❌ Failed to generate corrections: {e}")
+            return {
+                "error": str(e),
+                "corrected_response": agent_response,
+                "issues_fixed": []
+            }
+
+    async def suggest_tools(
+        self,
+        user_query: str,
+        tool_calls_made: List[Dict[str, Any]],
+        evaluation_result: EvaluationResult
+    ) -> List[Dict[str, str]]:
+        """
+        Suggest which tools should have been used or additional tools needed.
+
+        Args:
+            user_query: Original user query
+            tool_calls_made: List of tools actually called
+            evaluation_result: Evaluation results
+
+        Returns:
+            List of tool suggestions with rationale
+        """
+        try:
+            logger.info("🔍 Generating tool usage suggestions")
+
+            tools_called = [call.get('name', 'unknown') for call in tool_calls_made]
+
+            suggestion_prompt = f"""
+            You are an expert at tool orchestration for a Travel Concierge agent.
+
+            AVAILABLE TOOLS:
+            1. get_weather(lat, lon) - Get 7-day weather forecast
+            2. convert_fx(amount, base, target) - Convert currency
+            3. web_search(query, max_results) - Search for restaurants/attractions
+            4. recommend_card(mcc, amount, country) - Recommend credit card
+            5. get_card_recommendation(mcc, country) - RAG-based card knowledge
+            6. check_availability(start_date, end_date, flexible_days) - Check calendar
+            7. schedule_travel_event(title, start_date, end_date, destination, notes) - Schedule trip
+            8. translate_text(text, target_language, source_language) - Translate text
+            9. get_travel_phrases(target_language, category) - Get phrasebook
+            10. detect_language(text) - Detect text language
+
+            USER QUERY:
+            {user_query}
+
+            TOOLS ACTUALLY CALLED:
+            {json.dumps(tools_called, indent=2)}
+
+            EVALUATION FEEDBACK:
+            Tool Usage Score: {evaluation_result.criteria_scores.get('tool_usage', 0)}/5.0
+            Reasoning: {evaluation_result.reasoning}
+
+            Analyze the tool usage and provide:
+            1. Which tools were appropriately used
+            2. Which tools should have been used but weren't
+            3. Which tools were used unnecessarily
+            4. Optimal tool orchestration order
+
+            Respond in JSON format:
+            {{
+                "appropriate_tools": ["tool1", "tool2"],
+                "missing_tools": [
+                    {{
+                        "tool": "tool_name",
+                        "reason": "Why this tool should be called",
+                        "parameters": {{"param": "suggested value"}},
+                        "priority": "high/medium/low"
+                    }}
+                ],
+                "unnecessary_tools": ["tool3"],
+                "optimal_orchestration": [
+                    {{
+                        "step": 1,
+                        "tool": "tool_name",
+                        "rationale": "Why this order"
+                    }}
+                ]
+            }}
+            """
+
+            # Get LLM suggestions
+            chat_service = self.kernel.get_service(type="ChatCompletionService")
+            response = await chat_service.get_chat_message_contents(
+                chat_history=ChatHistory.from_messages([("user", suggestion_prompt)]),
+                settings={"temperature": 0.3, "max_tokens": 1500}
+            )
+
+            # Parse suggestions
+            suggestions_text = response[0].content.strip()
+            suggestions = self._parse_json_response(suggestions_text)
+
+            logger.info(f"🔍 Tool suggestions generated: {len(suggestions.get('missing_tools', []))} missing tools identified")
+            return suggestions
+
+        except Exception as e:
+            logger.error(f"❌ Failed to generate tool suggestions: {e}")
+            return {"error": str(e), "missing_tools": []}
+
+    async def debug_agent_workflow(
+        self,
+        user_query: str,
+        agent_response: str,
+        state_transitions: List[Dict[str, str]],
+        tool_calls: List[Dict[str, Any]],
+        evaluation_result: EvaluationResult
+    ) -> Dict[str, Any]:
+        """
+        Provide debugging insights about the agent's workflow and decision-making.
+
+        Args:
+            user_query: Original user query
+            agent_response: Agent's response
+            state_transitions: List of state transitions that occurred
+            tool_calls: Tools called during execution
+            evaluation_result: Evaluation results
+
+        Returns:
+            Debugging insights and workflow analysis
+        """
+        try:
+            logger.info("🐛 Generating debugging insights")
+
+            debug_prompt = f"""
+            You are an expert AI debugger analyzing a Travel Concierge agent's workflow.
+
+            USER QUERY:
+            {user_query}
+
+            AGENT RESPONSE:
+            {agent_response}
+
+            STATE TRANSITIONS:
+            {json.dumps(state_transitions, indent=2)}
+
+            TOOL CALLS:
+            {json.dumps(tool_calls, indent=2)}
+
+            EVALUATION RESULTS:
+            Overall Score: {evaluation_result.overall_score}/5.0
+            Reasoning: {evaluation_result.reasoning}
+
+            Analyze the agent's execution and provide debugging insights:
+            1. Where did the agent go wrong in its workflow?
+            2. Which state transition was problematic?
+            3. Which tool call failed or was incorrect?
+            4. What decision-making errors occurred?
+            5. How can the system prompt be improved?
+            6. What error handling is missing?
+
+            Respond in JSON format:
+            {{
+                "workflow_issues": [
+                    {{
+                        "stage": "State or phase where issue occurred",
+                        "issue": "What went wrong",
+                        "root_cause": "Why it went wrong",
+                        "fix": "How to fix it"
+                    }}
+                ],
+                "tool_execution_problems": [
+                    {{
+                        "tool": "tool_name",
+                        "problem": "What was wrong with this tool call",
+                        "expected": "What should have happened",
+                        "actual": "What actually happened"
+                    }}
+                ],
+                "prompt_improvements": [
+                    {{
+                        "section": "Which part of system prompt",
+                        "current": "Current problematic instruction",
+                        "improved": "Improved instruction",
+                        "rationale": "Why this is better"
+                    }}
+                ],
+                "error_handling_gaps": [
+                    "Missing error handling for scenario X",
+                    "Need validation for parameter Y"
+                ],
+                "overall_diagnosis": "High-level summary of what needs to be fixed"
+            }}
+            """
+
+            # Get LLM debugging insights
+            chat_service = self.kernel.get_service(type="ChatCompletionService")
+            response = await chat_service.get_chat_message_contents(
+                chat_history=ChatHistory.from_messages([("user", debug_prompt)]),
+                settings={"temperature": 0.2, "max_tokens": 2000}
+            )
+
+            # Parse debugging insights
+            debug_text = response[0].content.strip()
+            debug_insights = self._parse_json_response(debug_text)
+
+            logger.info("🐛 Debugging insights generated successfully")
+            return debug_insights
+
+        except Exception as e:
+            logger.error(f"❌ Failed to generate debugging insights: {e}")
+            return {
+                "error": str(e),
+                "workflow_issues": [],
+                "overall_diagnosis": "Unable to generate debugging insights"
+            }
+
+    async def evaluate_with_enhancements(
+        self,
+        user_query: str,
+        agent_response: str,
+        structured_output: Dict[str, Any],
+        tool_calls: List[Dict[str, Any]],
+        citations: List[str],
+        state_transitions: List[Dict[str, str]] = None,
+        reference_facts: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Complete evaluation with corrections, tool suggestions, and debugging insights.
+
+        This is the enhanced evaluation that provides not just scores,
+        but also actionable improvements.
+
+        Args:
+            user_query: Original user query
+            agent_response: Agent's response
+            structured_output: Structured output
+            tool_calls: List of tool calls made
+            citations: List of citations provided
+            state_transitions: List of state transitions
+            reference_facts: Optional reference facts
+
+        Returns:
+            Comprehensive evaluation with all enhancements
+        """
+        try:
+            logger.info("🚀 Starting enhanced evaluation with corrections and suggestions")
+
+            # Step 1: Basic evaluation
+            evaluation_result = await self.evaluate_response(
+                user_query, agent_response, structured_output,
+                tool_calls, citations, reference_facts
+            )
+
+            # Step 2: Generate corrections if score is below threshold
+            corrections = None
+            if evaluation_result.overall_score < 4.0:
+                corrections = await self.generate_corrections(
+                    user_query, agent_response, structured_output, evaluation_result
+                )
+
+            # Step 3: Suggest tools if tool usage score is low
+            tool_suggestions = None
+            if evaluation_result.criteria_scores.get('tool_usage', 5.0) < 4.0:
+                tool_suggestions = await self.suggest_tools(
+                    user_query, tool_calls, evaluation_result
+                )
+
+            # Step 4: Generate debugging insights if overall score is low
+            debugging_insights = None
+            if evaluation_result.overall_score < 3.5 and state_transitions:
+                debugging_insights = await self.debug_agent_workflow(
+                    user_query, agent_response, state_transitions,
+                    tool_calls, evaluation_result
+                )
+
+            # Combine all results
+            enhanced_result = {
+                "evaluation": {
+                    "overall_score": evaluation_result.overall_score,
+                    "criteria_scores": evaluation_result.criteria_scores,
+                    "reasoning": evaluation_result.reasoning,
+                    "recommendations": evaluation_result.recommendations,
+                    "passed": evaluation_result.passed
+                },
+                "corrections": corrections,
+                "tool_suggestions": tool_suggestions,
+                "debugging_insights": debugging_insights,
+                "summary": {
+                    "needs_correction": corrections is not None,
+                    "needs_tool_optimization": tool_suggestions is not None,
+                    "needs_debugging": debugging_insights is not None,
+                    "ready_for_production": evaluation_result.overall_score >= 4.5
+                }
+            }
+
+            logger.info(f"🚀 Enhanced evaluation completed. Score: {evaluation_result.overall_score:.2f}/5.0")
+            return enhanced_result
+
+        except Exception as e:
+            logger.error(f"❌ Enhanced evaluation failed: {e}")
+            return {
+                "error": str(e),
+                "evaluation": {
+                    "overall_score": 0.0,
+                    "passed": False
+                }
+            }
+
+    def _parse_json_response(self, text: str) -> Dict[str, Any]:
+        """Parse JSON from LLM response, handling markdown code blocks."""
+        try:
+            # Remove markdown code blocks if present
+            if "```json" in text:
+                start = text.find("```json") + 7
+                end = text.find("```", start)
+                text = text[start:end].strip()
+            elif "```" in text:
+                start = text.find("```") + 3
+                end = text.find("```", start)
+                text = text[start:end].strip()
+
+            # Find JSON object
+            start_idx = text.find('{')
+            end_idx = text.rfind('}') + 1
+
+            if start_idx != -1 and end_idx > start_idx:
+                json_text = text[start_idx:end_idx]
+                return json.loads(json_text)
+            else:
+                return {}
+
+        except Exception as e:
+            logger.error(f"Failed to parse JSON response: {e}")
+            return {}

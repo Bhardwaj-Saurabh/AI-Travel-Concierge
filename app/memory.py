@@ -1,6 +1,6 @@
 # app/memory.py
 from typing import List, Dict, Any, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 class ShortTermMemory:
     """
@@ -22,37 +22,37 @@ class ShortTermMemory:
     def add_memory(self, content: str, memory_type: str = "conversation"):
         """
         Add a new memory to short-term storage.
-        
-        TODO: Implement memory addition
-        - Store memory with timestamp and type
-        - Implement sliding window eviction if needed
-        - Maintain memory order and limits
+
+        Stores memory with timestamp and type, implements sliding window eviction when needed.
         """
-        # TODO: Implement memory addition
-        # This is a placeholder - replace with actual implementation
-        pass
-    
+        memory = {
+            "content": content,
+            "memory_type": memory_type,
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+        self.memories.append(memory)
+        self._evict_if_needed()
+
+    def _evict_if_needed(self):
+        """Implement sliding window eviction when memory limit is exceeded."""
+        if len(self.memories) > self.max_memories:
+            # Remove oldest memories (FIFO)
+            self.memories = self.memories[-self.max_memories:]
+
     def get_memories(self, memory_type: Optional[str] = None) -> List[Dict[str, Any]]:
         """
         Retrieve memories from short-term storage.
-        
-        TODO: Implement memory retrieval
-        - Filter by memory type if specified
-        - Return recent memories in chronological order
-        - Handle empty memory case
+
+        Filters by memory type if specified, returns memories in chronological order.
         """
-        # TODO: Implement memory retrieval
-        # This is a placeholder - replace with actual implementation
-        return []
-    
+        if memory_type is None:
+            return self.memories.copy()
+
+        return [m for m in self.memories if m["memory_type"] == memory_type]
+
     def clear_memories(self):
         """
         Clear all short-term memories.
-        
-        TODO: Implement memory clearing
-        - Reset memory storage
-        - Maintain memory limits
         """
-        # TODO: Implement memory clearing
-        # This is a placeholder - replace with actual implementation
-        pass
+        self.memories = []
