@@ -18,7 +18,6 @@ import sys
 import asyncio
 from semantic_kernel import Kernel
 from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion, AzureTextEmbedding
-from app.rag.retriever import retrieve
 from app.synthesis import synthesize_to_tripplan
 from app.state import AgentState
 from app.utils.config import validate_all_config
@@ -30,8 +29,6 @@ from app.tools.card import CardTools
 from app.tools.knowledge import KnowledgeTools
 from app.tools.calendar import CalendarTools
 from app.tools.translation import TranslationTools
-from app.filters import setup_kernel_filters
-from tiktoken import encoding_for_model
 
 # Set up logging
 logger = setup_logger("travel_agent")
@@ -191,11 +188,6 @@ def create_kernel() -> Kernel:
 
     kernel.add_plugin(TranslationTools(), plugin_name="TranslationTools")
     logger.info("Registered TranslationTools plugin")
-
-    # Setup kernel filters (optional - for logging, telemetry, etc.)
-    # Note: Filter setup may vary by SK version
-    # filters = setup_kernel_filters(kernel)
-    # logger.info("Configured kernel filters")
 
     logger.info("Kernel created and configured successfully with 7 tool plugins")
     return kernel

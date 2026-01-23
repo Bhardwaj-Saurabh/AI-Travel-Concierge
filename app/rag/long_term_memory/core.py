@@ -66,7 +66,22 @@ class LongTermMemory:
                          metadata: Optional[Dict[str, Any]] = None,
                          embedding: Optional[List[float]] = None,
                          context: Optional[str] = None) -> str:
-        """Add a new memory to Cosmos DB."""
+        """
+        Add a new memory to Cosmos DB.
+
+        Args:
+            session_id: Session identifier (used as partition key)
+            content: Memory content text
+            memory_type: Type of memory (conversation, tool_result, preference, etc.)
+            importance_score: Score from 0.0 to 1.0 indicating importance
+            tags: Optional list of tags for filtering
+            metadata: Optional additional metadata
+            embedding: Optional pre-computed embedding vector
+            context: Optional context information
+
+        Returns:
+            The generated memory_id
+        """
         memory_id = str(uuid.uuid4())
         now = datetime.utcnow()
         item = MemoryItem(
@@ -82,20 +97,42 @@ class LongTermMemory:
             metadata=metadata or {},
             embedding=embedding,
         )
-        # TODO: Add memory to Cosmos DB
-        logger.info(f"✅ Added memory {memory_id} (importance={importance_score})")
+
+        # Insert memory into Cosmos DB
+        try:
+            self._container.upsert_item(item.to_dict())
+            logger.info(f"✅ Added memory {memory_id} (importance={importance_score})")
+        except Exception as e:
+            logger.error(f"❌ Failed to add memory to Cosmos DB: {e}")
+            raise
 
         self._check_and_prune_if_needed()
         return memory_id
 
     def get_memory(self, memory_id: str, session_id: str) -> Optional[MemoryItem]:
-        """Retrieve memory by id and increment access stats."""
+        """
+        Retrieve memory by id and increment access stats.
+
+        Args:
+            memory_id: The unique memory identifier
+            session_id: Session identifier (partition key)
+
+        Returns:
+            MemoryItem if found, None otherwise
+        """
         try:
-            # TODO: Get memory from Cosmos DB
+            # Read memory from Cosmos DB using point read
+            item = self._container.read_item(item=memory_id, partition_key=session_id)
+
+            # Convert to MemoryItem and update access stats
             mem = MemoryItem.from_dict(item)
             mem.access_count += 1
             mem.last_accessed = datetime.utcnow()
+
+            # Update the item in Cosmos DB with new access stats
             self._container.upsert_item(mem.to_dict())
+
+            logger.info(f"✅ Retrieved memory {memory_id} (access_count={mem.access_count})")
             return mem
         except Exception as e:
             logger.error(f"❌ Failed to get memory {memory_id}: {e}")

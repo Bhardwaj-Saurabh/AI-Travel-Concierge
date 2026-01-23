@@ -110,19 +110,29 @@ def _extract_currency_info(fx_result: Dict[str, Any], card_result: Dict[str, Any
         )
 
     try:
-        # Get exchange rate
+        # FX API format: {"amount": 100, "base": "USD", "rates": {"EUR": 85.16}}
+        # The rates value is already the converted amount for the original amount
+        original_amount = fx_result.get("amount", 100.0)
         rates = fx_result.get("rates", {})
-        base = fx_result.get("base", "USD")
 
-        # Assuming conversion is USD to EUR for example
-        rate = None
+        # Get the converted amount and calculate exchange rate
+        converted_amount = None
+        exchange_rate = None
         for currency, value in rates.items():
-            rate = value
+            converted_amount = value
+            if original_amount > 0:
+                exchange_rate = value / original_amount
             break
 
-        # Calculate sample costs
+        # Sample meal cost
         sample_meal_usd = 100.0
-        sample_meal_local = sample_meal_usd * rate if rate else None
+        # If original amount equals sample, use converted_amount directly
+        if original_amount == sample_meal_usd:
+            sample_meal_local = converted_amount
+        elif exchange_rate:
+            sample_meal_local = sample_meal_usd * exchange_rate
+        else:
+            sample_meal_local = None
 
         # Calculate points earned from card
         points_earned = None
@@ -136,7 +146,7 @@ def _extract_currency_info(fx_result: Dict[str, Any], card_result: Dict[str, Any
                     points_earned = 100
 
         return CurrencyInfo(
-            usd_to_eur=round(rate, 4) if rate else None,
+            usd_to_eur=round(exchange_rate, 4) if exchange_rate else None,
             sample_meal_usd=sample_meal_usd,
             sample_meal_eur=round(sample_meal_local, 2) if sample_meal_local else None,
             points_earned=points_earned
