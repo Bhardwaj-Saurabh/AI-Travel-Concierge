@@ -144,6 +144,10 @@ ENV/
 env.bak/
 venv.bak/
 
+# Lock files (using requirements.txt instead)
+uv.lock
+*.lock
+
 # Spyder project settings
 .spyderproject
 .spyproject
