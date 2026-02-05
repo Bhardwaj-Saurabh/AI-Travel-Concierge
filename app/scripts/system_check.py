@@ -185,7 +185,7 @@ def check_knowledge_base():
         return False
 
 def main():
-    print("🏥 Travel Concierge Agent - System Health Check")
+    print("Travel Concierge Agent - System Health Check")
     print("=" * 60)
     print(f"Timestamp: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
     checks = [
@@ -200,13 +200,15 @@ def main():
     ]
     results = {}
     for name, fn in checks:
-        print(f"\n🔎 {name}...")
+        print(f"\nChecking {name}...")
         results[name] = fn()
-    print("\n📊 Health Check Summary")
+    print("\nHealth Check Summary")
     print("=" * 60)
     passed = sum(1 for r in results.values() if r)
     for name, result in results.items():
-        print(f"{'✅ PASS' if result else '❌ FAIL'} {name}")
+        status = "PASS" if result else "FAIL"
+        symbol = "[+]" if result else "[X]"
+        print(f"{symbol} {status}: {name}")
     print(f"\nOverall: {passed}/{len(results)} checks passed")
     return 0 if passed == len(results) else 1
 
