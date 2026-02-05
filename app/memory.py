@@ -309,6 +309,8 @@ class ShortTermMemory:
             context_parts.append(f"{role}: {content}")
             token_count += item_tokens
 
+        if not context_parts:
+            return "No conversation history."
         return "\n".join(context_parts)
 
     def __str__(self) -> str:

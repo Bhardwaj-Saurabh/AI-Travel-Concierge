@@ -20,6 +20,82 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 
+class MemoryItem:
+    """
+    Data class representing a single memory item.
+
+    Used for serialization/deserialization of memory records.
+    """
+
+    def __init__(
+        self,
+        id: str,
+        session_id: str,
+        content: str,
+        memory_type: str = "conversation",
+        importance_score: float = 0.5,
+        access_count: int = 0,
+        last_accessed: datetime = None,
+        created_at: datetime = None,
+        tags: List[str] = None,
+        metadata: Dict[str, Any] = None,
+        embedding: List[float] = None
+    ):
+        self.id = id
+        self.session_id = session_id
+        self.content = content
+        self.memory_type = memory_type
+        self.importance_score = importance_score
+        self.access_count = access_count
+        self.last_accessed = last_accessed or datetime.now(timezone.utc)
+        self.created_at = created_at or datetime.now(timezone.utc)
+        self.tags = tags or []
+        self.metadata = metadata or {}
+        self.embedding = embedding
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert MemoryItem to dictionary for Cosmos DB storage."""
+        return {
+            "id": self.id,
+            "session_id": self.session_id,
+            "content": self.content,
+            "memory_type": self.memory_type,
+            "importance_score": self.importance_score,
+            "access_count": self.access_count,
+            "last_accessed": self.last_accessed.isoformat() if isinstance(self.last_accessed, datetime) else self.last_accessed,
+            "created_at": self.created_at.isoformat() if isinstance(self.created_at, datetime) else self.created_at,
+            "tags": self.tags,
+            "metadata": self.metadata,
+            "embedding": self.embedding
+        }
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "MemoryItem":
+        """Create MemoryItem from dictionary."""
+        last_accessed = data.get("last_accessed")
+        created_at = data.get("created_at")
+
+        # Parse ISO format strings to datetime
+        if isinstance(last_accessed, str):
+            last_accessed = datetime.fromisoformat(last_accessed.replace("Z", "+00:00"))
+        if isinstance(created_at, str):
+            created_at = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
+
+        return cls(
+            id=data["id"],
+            session_id=data["session_id"],
+            content=data["content"],
+            memory_type=data.get("memory_type", "conversation"),
+            importance_score=data.get("importance_score", 0.5),
+            access_count=data.get("access_count", 0),
+            last_accessed=last_accessed,
+            created_at=created_at,
+            tags=data.get("tags", []),
+            metadata=data.get("metadata", {}),
+            embedding=data.get("embedding")
+        )
+
+
 class LongTermMemory:
     """
     Long-term memory system with Cosmos DB persistence.
