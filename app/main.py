@@ -29,9 +29,26 @@ from app.tools.card import CardTools
 from app.tools.knowledge import KnowledgeTools
 from app.tools.calendar import CalendarTools
 from app.tools.translation import TranslationTools
+from app.long_term_memory import LongTermMemory
 
 # Set up logging
 logger = setup_logger("travel_agent")
+
+# Initialize long-term memory (lazy loading)
+_memory: LongTermMemory = None
+
+
+def get_memory() -> LongTermMemory:
+    """Get or initialize the long-term memory instance."""
+    global _memory
+    if _memory is None:
+        try:
+            _memory = LongTermMemory()
+            logger.info("✅ Long-term memory initialized")
+        except Exception as e:
+            logger.warning(f"⚠️ Could not initialize long-term memory: {e}")
+            return None
+    return _memory
 
 async def extract_requirements_from_input_async(user_input: str, kernel: Kernel) -> dict:
     """
@@ -292,6 +309,38 @@ def run_request(user_input: str) -> str:
 
         state.advance()  # Move to Done
         logger.info("Travel plan generation completed successfully")
+
+        # Phase 7: Store in long-term memory
+        logger.info("Phase 7: Storing trip plan in memory...")
+        try:
+            memory = get_memory()
+            if memory:
+                import uuid
+                session_id = str(uuid.uuid4())
+
+                # Store the user's query
+                memory.add_memory(
+                    session_id=session_id,
+                    content=user_input,
+                    memory_type="user_query",
+                    importance_score=0.7,
+                    tags=["travel", "query", state.destination or "unknown"],
+                    metadata={"destination": state.destination, "dates": state.dates, "card": state.card}
+                )
+
+                # Store the trip plan result
+                memory.add_memory(
+                    session_id=session_id,
+                    content=trip_plan_json,
+                    memory_type="trip_plan",
+                    importance_score=0.9,
+                    tags=["travel", "plan", state.destination or "unknown"],
+                    metadata={"destination": state.destination, "dates": state.dates}
+                )
+
+                logger.info(f"✅ Trip plan stored in Cosmos DB (session: {session_id})")
+        except Exception as mem_error:
+            logger.warning(f"⚠️ Failed to store in memory (non-fatal): {mem_error}")
 
         return trip_plan_json
 

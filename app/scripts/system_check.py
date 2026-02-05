@@ -164,9 +164,10 @@ def check_memory_systems():
         stm = ShortTermMemory(max_items=5, max_tokens=1000)
         stm.add_conversation("user", "Hello")
         stm.add_conversation("assistant", "Hi there!")
-        ltm = LongTermMemory(max_memories=1000, importance_threshold=0.3)
-        ltm.add_memory("test", "Test memory", "test", 0.5)
-        print("✅ Short and long-term memory: Working")
+        ltm = LongTermMemory()
+        stats = ltm.get_memory_statistics()
+        print(f"✅ Short-term memory: Working")
+        print(f"✅ Long-term memory: Connected ({stats.get('total_memories', 0)} memories)")
         return True
     except Exception as e:
         print(f"❌ Memory systems check failed: {e}")
