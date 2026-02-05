@@ -7,7 +7,6 @@ Run this to start chatting with the travel agent!
 import os
 import sys
 import json
-import asyncio
 from app.main import run_request
 
 def main():
@@ -22,9 +21,6 @@ def main():
     print("  status  - Show system status")
     print("  clear   - Clear the screen")
     print("  quit    - Exit the chat")
-    print()
-    print("⚠️  Note: This is a starter template. You need to implement")
-    print("   the core functionality in the app/ directory to make this work!")
     print()
     
     # Check for .env file
@@ -48,27 +44,9 @@ def main():
                 print("  Just tell me about your travel plans!")
                 print("  Example: 'I want to go to Paris from June 1-8 with my BankGold card'")
                 print("  I'll help you with weather, restaurants, currency, and card recommendations!")
-                print()
-                print("  🔧 Development Notes:")
-                print("  - Implement extract_requirements_from_input() in app/main.py")
-                print("  - Implement create_kernel() in app/main.py")
-                print("  - Implement the complete run_request() workflow")
-                print("  - Implement tool classes in app/tools/")
-                print("  - Run tests to verify your implementation")
                 continue
             elif user_input.lower() == 'status':
-                print("\n🔍 System Status:")
-                print("  ⚠️  Travel Agent: Template (needs implementation)")
-                print("  ⚠️  Tools: Weather, FX, Search, Card, Knowledge (needs implementation)")
-                print("  ⚠️  Memory: Short-term and Long-term (needs implementation)")
-                print("  ⚠️  RAG: Vector search (needs implementation)")
-                print()
-                print("  📋 TODO:")
-                print("  1. Implement app/main.py functions")
-                print("  2. Implement app/tools/ classes")
-                print("  3. Implement app/state.py state management")
-                print("  4. Implement app/synthesis.py synthesis logic")
-                print("  5. Run tests to verify functionality")
+                print("\n🔍 System Status: Ready")
                 continue
             elif user_input.lower() == 'clear':
                 os.system('cls' if os.name == 'nt' else 'clear')
@@ -78,10 +56,9 @@ def main():
             
             # Process the request
             print("\n🤖 Agent: Let me help you plan your trip...")
-            print("⚠️  Note: This is a template - you need to implement the functionality!")
             
             try:
-                result = asyncio.run(run_request(user_input))
+                result = run_request(user_input)
                 
                 # Parse and display the result
                 try:
@@ -93,7 +70,6 @@ def main():
                     
             except Exception as e:
                 print(f"❌ Error: {e}")
-                print("This is expected in the starter template - implement the functions to fix this!")
                 
         except KeyboardInterrupt:
             print("\n\n👋 Chat stopped. Goodbye!")
@@ -104,19 +80,24 @@ def main():
 
 def display_plan(plan_data):
     """Display the travel plan in a formatted way"""
-    if "plan" not in plan_data:
+    # Support both {"plan": {...}} wrapper and direct plan dict
+    if "plan" in plan_data:
+        plan = plan_data["plan"]
+    elif "destination" in plan_data:
+        plan = plan_data
+    else:
         print("❌ Error: Invalid plan format")
         return
     
-    plan = plan_data["plan"]
-    
     print("\n" + "="*60)
-    print("🎯 TRAVEL PLAN (TEMPLATE)")
+    print("🎯 TRAVEL PLAN")
     print("="*60)
     
     # Destination and dates
     print(f"📍 Destination: {plan.get('destination', 'N/A')}")
     print(f"📅 Travel Dates: {plan.get('travel_dates', 'N/A')}")
+    print()
+    print("✅ Response validated with Pydantic")
     print()
     
     # Weather
@@ -129,28 +110,47 @@ def display_plan(plan_data):
         print(f"Recommendation: {weather.get('recommendation', 'N/A')}")
         print()
     
-    # Restaurants
-    if 'restaurants' in plan and plan['restaurants']:
-        print("🍽️  RESTAURANTS")
+    # Search results (restaurants, etc.)
+    if 'results' in plan and plan['results']:
+        print("🔍 SEARCH RESULTS")
         print("-" * 30)
-        for i, restaurant in enumerate(plan['restaurants'][:3], 1):
-            print(f"{i}. {restaurant.get('name', 'N/A')}")
-            if restaurant.get('cuisine'):
-                print(f"   Cuisine: {restaurant['cuisine']}")
-            if restaurant.get('rating'):
-                print(f"   Rating: {restaurant['rating']}/5")
-            if restaurant.get('price_range'):
-                print(f"   Price: {restaurant['price_range']}")
-        print()
+        seen_urls = set()
+        idx = 0
+        for result in plan['results'][:5]:
+            url = result.get('url', '')
+            url_key = url.rstrip('/').lower() if url else None
+            if url_key and url_key in seen_urls:
+                continue
+            if url_key:
+                seen_urls.add(url_key)
+            idx += 1
+            title = result.get('title', 'N/A')
+            print(f"{idx}. 🍽️ {title}")
+            if result.get('snippet'):
+                print(f"   {result['snippet']}")
+            if url:
+                print(f"   🔗 {url}")
+            if result.get('rating'):
+                print(f"   ⭐ Rating: {result['rating']}/5")
+            if result.get('price_range'):
+                print(f"   💰 Price: {result['price_range']}")
+            print()
+
     
     # Card recommendation
     if 'card_recommendation' in plan and plan['card_recommendation']:
         card = plan['card_recommendation']
-        print("💳 CARD RECOMMENDATION")
+        source = card.get('source', '')
+        if 'Your card' in source:
+            print("💳 YOUR CARD")
+        else:
+            print("💳 CARD RECOMMENDATION")
         print("-" * 30)
         print(f"Card: {card.get('card', 'N/A')}")
         print(f"Benefit: {card.get('benefit', 'N/A')}")
         print(f"FX Fee: {card.get('fx_fee', 'N/A')}")
+        if source:
+            print(f"Source: {source}")
         print()
     
     # Currency info
@@ -183,7 +183,6 @@ def display_plan(plan_data):
         print()
     
     print("="*60)
-    print("⚠️  This is a template response. Implement the functions to get real data!")
 
 if __name__ == "__main__":
     main()

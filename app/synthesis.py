@@ -91,11 +91,16 @@ def _extract_card_recommendation(card_result: Dict[str, Any]) -> CardRecommendat
         )
 
     best = card_result.get("best", {})
+    user_found = card_result.get("user_card_found", False)
+    if user_found:
+        source = f"Your card — {best.get('card', 'N/A')}"
+    else:
+        source = "CardTools - Rules-based recommendation"
     return CardRecommendation(
         card=best.get("card", "BankGold"),
         benefit=best.get("perk", "Standard rewards"),
         fx_fee=best.get("fx_fee", "Unknown"),
-        source="CardTools - Rules-based recommendation"
+        source=source
     )
 
 

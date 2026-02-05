@@ -83,6 +83,56 @@ class CardTools:
 
         return net_value
 
+    def _find_card_by_name(self, user_card: str):
+        """Find a card in the database by fuzzy name match (case-insensitive)."""
+        user_lower = user_card.lower().strip()
+        for card_name in self.CARDS:
+            if card_name.lower() == user_lower or user_lower in card_name.lower() or card_name.lower() in user_lower:
+                return card_name
+        return None
+
+    @kernel_function(name="get_card_perks", description="Get perks for a specific user card")
+    def get_card_perks(self, user_card: str, mcc: str, amount: float, country: str):
+        """
+        Look up the perks for the user's own card.
+
+        Args:
+            user_card: Name of the user's card (e.g. "BankGold", "BankRewards")
+            mcc: Merchant Category Code
+            amount: Transaction amount in USD
+            country: Country code
+
+        Returns:
+            Dictionary with the user's card perks, or a recommendation if card not found
+        """
+        matched = self._find_card_by_name(user_card)
+        if matched:
+            is_foreign = country.upper() != "US"
+            mcc_category = self._get_mcc_category(mcc)
+            card_data = self.CARDS[matched]
+            perk = card_data["perks"].get(mcc_category, card_data["perks"]["default"])
+            fx_fee = card_data["fx_fee"]
+            fx_text = f"{fx_fee * 100}% FX fee" if is_foreign and fx_fee > 0 else "No FX fees"
+
+            return {
+                "best": {
+                    "card": matched,
+                    "perk": perk,
+                    "fx_fee": fx_text,
+                    "estimated_value": f"${self._calculate_value(matched, card_data, mcc_category, amount, is_foreign):.2f}"
+                },
+                "explanation": f"Your {matched} card offers {perk}. {fx_text}.",
+                "mcc": mcc,
+                "category": mcc_category,
+                "user_card_found": True
+            }
+
+        # Card not in database — fall back to recommendation
+        result = self.recommend_card(mcc, amount, country)
+        result["user_card_found"] = False
+        result["user_card_query"] = user_card
+        return result
+
     @kernel_function(name="recommend_card", description="Recommend best credit card based on MCC code, amount, and country")
     def recommend_card(self, mcc: str, amount: float, country: str):
         """

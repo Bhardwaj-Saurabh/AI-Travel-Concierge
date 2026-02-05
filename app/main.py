@@ -278,7 +278,10 @@ def run_request(user_input: str) -> str:
         if "card" in tools_to_call:
             logger.info("Calling card tool...")
             # MCC 5812 = Restaurants, assume foreign transaction
-            tool_results["card"] = card_tool.recommend_card("5812", 100.0, "FR")
+            if state.card and state.card != "Not specified":
+                tool_results["card"] = card_tool.get_card_perks(state.card, "5812", 100.0, "FR")
+            else:
+                tool_results["card"] = card_tool.recommend_card("5812", 100.0, "FR")
 
         logger.info("Tool execution completed")
         state.advance()  # Move to Synthesize

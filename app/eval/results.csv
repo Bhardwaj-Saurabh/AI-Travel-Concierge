@@ -1,0 +1,4 @@
+destination,travel_dates,card,valid_json,has_citations,card_mentioned
+Paris,2026-06-01 to 2026-06-08,BankGold,True,True,True
+Tokyo,2026-07-10 to 2026-07-17,BankGold,True,True,True
+Barcelona,2026-08-15 to 2026-08-22,BankGold,True,True,True
