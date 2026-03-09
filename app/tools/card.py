@@ -147,9 +147,18 @@ class CardTools:
         Returns:
             Dictionary containing best card recommendation with perks and FX fees
         """
+        # Print tool invocation for evidence
+        print(f"\n{'='*60}")
+        print(f"🔧 TOOL INVOCATION: recommend_card")
+        print(f"{'='*60}")
+        print(f"   MCC Code: {mcc}")
+        print(f"   Amount: ${amount}")
+        print(f"   Country: {country}")
+
         try:
             # Determine if this is a foreign transaction
             is_foreign = country.upper() != "US"
+            print(f"   Foreign Transaction: {'Yes' if is_foreign else 'No'}")
 
             # Get MCC category for benefit matching
             mcc_category = self._get_mcc_category(mcc)
@@ -173,6 +182,13 @@ class CardTools:
             fx_fee_text = f"{best_fx_fee * 100}% FX fee" if is_foreign and best_fx_fee > 0 else "No FX fees"
             explanation = f"{best_card} offers {best_perk} for this transaction. {fx_fee_text}."
 
+            # Print result for evidence
+            print(f"   ✅ Recommendation generated")
+            print(f"   💳 Best Card: {best_card}")
+            print(f"   🎁 Perk: {best_perk}")
+            print(f"   💰 Estimated Value: ${best_value:.2f}")
+            print(f"   🌍 FX Fee: {fx_fee_text}")
+
             return {
                 "best": {
                     "card": best_card,
@@ -187,4 +203,5 @@ class CardTools:
             }
 
         except Exception as e:
+            print(f"   ❌ Error: {e}")
             return {"error": f"Error recommending card: {str(e)}"}

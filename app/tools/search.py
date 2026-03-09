@@ -40,10 +40,25 @@ class SearchTools:
         Returns:
             List of dictionaries containing search results with title, URL, and snippet
         """
-        # Check configuration
+        # Print tool invocation for evidence
+        print(f"\n{'='*60}")
+        print(f"🔧 TOOL INVOCATION: web_search")
+        print(f"{'='*60}")
+        print(f"   Query: {query}")
+        print(f"   Max Results: {max_results}")
+        print(f"   Project Endpoint: {self.project_endpoint[:50]}..." if self.project_endpoint else "   Project Endpoint: Not configured")
+        print(f"   Agent ID: {self.agent_id}")
+        print(f"   Bing Connection ID: {self.bing_connection_id}")
+
+        # Check configuration - now includes BING_CONNECTION_ID validation
         if not self.project_endpoint or not self.agent_id:
             logger.warning("PROJECT_ENDPOINT or AGENT_ID not configured")
             return [{"title": "Missing configuration", "url": "", "snippet": "PROJECT_ENDPOINT or AGENT_ID not configured. Please set environment variables."}]
+
+        # Validate BING_CONNECTION_ID is configured for Bing grounding
+        if not self.bing_connection_id:
+            logger.warning("BING_CONNECTION_ID not configured - Bing grounding may not work properly")
+            print(f"   ⚠️  Warning: BING_CONNECTION_ID not set")
 
         # Check SDK availability
         if AIProjectClient is None:
@@ -95,7 +110,11 @@ class SearchTools:
             endpoint=self.project_endpoint
         )
 
-        logger.info(f"Using existing Foundry Agent: {self.agent_id}")
+        # Log Bing connection usage
+        print(f"   🌐 Connecting to Azure AI Foundry...")
+        print(f"   📡 Agent ID: {self.agent_id}")
+        print(f"   🔗 Bing Connection: {self.bing_connection_id}")
+        logger.info(f"Using existing Foundry Agent: {self.agent_id} with Bing Connection: {self.bing_connection_id}")
 
         # Create thread and run in one call with the search query
         search_message = f"Search the web for: {query}. Return the top {max_results} results with title, URL, and a brief description for each."

@@ -108,7 +108,10 @@ def retrieve(query: str, k: int = 5) -> List[Dict[str, Any]]:
         top_results = results_with_scores[:k]
 
         # Print VectorDistance scores for console output evidence
-        print(f"\n📚 RAG Retrieval Results for query: '{query}'")
+        print(f"\n{'='*60}")
+        print(f"🔧 RAG KNOWLEDGE RETRIEVAL")
+        print(f"{'='*60}")
+        print(f"   Query: '{query}'")
         print(f"   Documents searched: {len(items)}")
         print(f"   Top {len(top_results)} results by VectorDistance (cosine similarity):")
         for i, r in enumerate(top_results):
@@ -202,7 +205,10 @@ def retrieve_with_cosmos_vector_search(query: str, k: int = 5) -> List[Dict[str,
 
         # Format results
         results = []
-        print(f"\n📚 RAG Vector Search Results (Cosmos DB VectorDistance) for: '{query}'")
+        print(f"\n{'='*60}")
+        print(f"🔧 RAG KNOWLEDGE RETRIEVAL (Cosmos DB VectorDistance)")
+        print(f"{'='*60}")
+        print(f"   Query: '{query}'")
         for i, item in enumerate(items):
             similarity_score = round(1 - item.get("SimilarityScore", 1.0), 4)
             vector_distance = item.get("SimilarityScore", 1.0)

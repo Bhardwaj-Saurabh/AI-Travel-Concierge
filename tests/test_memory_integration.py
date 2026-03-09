@@ -6,8 +6,7 @@ import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 from app.memory import ShortTermMemory
-from app.rag.long_term_memory.core import LongTermMemory
-from app.rag.long_term_memory.models import MemoryItem
+from app.long_term_memory import LongTermMemory, MemoryItem
 
 
 class TestMemoryIntegration:

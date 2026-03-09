@@ -15,6 +15,14 @@ class WeatherTools:
         Returns:
             Dictionary containing weather forecast data with daily temperature and weather codes
         """
+        # Print tool invocation for evidence
+        print(f"\n{'='*60}")
+        print(f"🔧 TOOL INVOCATION: get_weather")
+        print(f"{'='*60}")
+        print(f"   Latitude: {lat}")
+        print(f"   Longitude: {lon}")
+        print(f"   API: Open-Meteo (https://api.open-meteo.com)")
+
         # Construct API URL with parameters
         base_url = "https://api.open-meteo.com/v1/forecast"
         params = {
@@ -25,9 +33,20 @@ class WeatherTools:
             "timezone": "UTC"
         }
 
-        # Make API request
-        response = requests.get(base_url, params=params, timeout=10)
-        response.raise_for_status()
+        try:
+            # Make API request
+            response = requests.get(base_url, params=params, timeout=10)
+            response.raise_for_status()
 
-        # Return weather data
-        return response.json()
+            # Parse and display results for evidence
+            data = response.json()
+            print(f"   ✅ API Response received")
+            if 'daily' in data:
+                temps = data['daily'].get('temperature_2m_max', [])
+                print(f"   🌡️  Temperature forecast (max): {temps[:3]}...")
+            print(f"   📍 Timezone: {data.get('timezone', 'N/A')}")
+
+            return data
+        except Exception as e:
+            print(f"   ❌ Error: {e}")
+            return {"error": f"Unexpected error: {str(e)}"}
