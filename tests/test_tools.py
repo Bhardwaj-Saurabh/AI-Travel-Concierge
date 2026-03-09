@@ -42,12 +42,15 @@ class TestWeatherTool:
     
     @patch('app.tools.weather.requests.get')
     def test_get_weather_api_error(self, mock_get):
-        """Test weather tool handles API errors"""
+        """Test weather tool handles API errors gracefully"""
         mock_get.side_effect = Exception("API Error")
-        
+
         weather_tool = WeatherTools()
-        with pytest.raises(Exception):
-            weather_tool.get_weather(48.8566, 2.3522)
+        result = weather_tool.get_weather(48.8566, 2.3522)
+
+        # Weather tool catches exceptions and returns error dict
+        assert 'error' in result
+        assert 'API Error' in result['error'] or 'Unexpected error' in result['error']
 
 
 class TestFxTool:
@@ -76,12 +79,15 @@ class TestFxTool:
     
     @patch('app.tools.fx.requests.get')
     def test_convert_fx_api_error(self, mock_get):
-        """Test FX tool handles API errors"""
+        """Test FX tool handles API errors gracefully"""
         mock_get.side_effect = Exception("API Error")
-        
+
         fx_tool = FxTools()
-        with pytest.raises(Exception):
-            fx_tool.convert_fx(100, "USD", "EUR")
+        result = fx_tool.convert_fx(100, "USD", "EUR")
+
+        # FX tool catches exceptions and returns error dict
+        assert 'error' in result
+        assert 'API Error' in result['error'] or 'Unexpected error' in result['error']
 
 
 class TestSearchTool:
@@ -161,11 +167,11 @@ class TestCardTool:
         """Test successful card recommendation"""
         card_tool = CardTools()
         result = card_tool.recommend_card("5812", 100, "France")
-        
+
         assert 'best' in result
         assert 'explanation' in result
         assert 'card' in result['best']
-        assert 'benefit' in result['best']
+        assert 'perk' in result['best']  # Actual field name is 'perk', not 'benefit'
         assert 'fx_fee' in result['best']
     
     def test_recommend_card_different_countries(self):
