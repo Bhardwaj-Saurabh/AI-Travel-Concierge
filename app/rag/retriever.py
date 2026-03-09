@@ -107,6 +107,17 @@ def retrieve(query: str, k: int = 5) -> List[Dict[str, Any]]:
         results_with_scores.sort(key=lambda x: x["similarity"], reverse=True)
         top_results = results_with_scores[:k]
 
+        # Print VectorDistance scores for console output evidence
+        print(f"\n📚 RAG Retrieval Results for query: '{query}'")
+        print(f"   Documents searched: {len(items)}")
+        print(f"   Top {len(top_results)} results by VectorDistance (cosine similarity):")
+        for i, r in enumerate(top_results):
+            vector_distance = 1.0 - r["similarity"]  # Convert similarity to distance
+            print(f"   [{i+1}] VectorDistance: {vector_distance:.4f} | Similarity: {r['similarity']:.4f}")
+            print(f"       Content: {r['content'][:100]}...")
+            doc_id = r['metadata'].get('doc_id', 'unknown')
+            print(f"       Doc ID: {doc_id}")
+
         # Remove the similarity field from final results (it's in metadata as relevance_score)
         final_results = [
             {
@@ -190,17 +201,22 @@ def retrieve_with_cosmos_vector_search(query: str, k: int = 5) -> List[Dict[str,
         ))
 
         # Format results
-        results = [
-            {
+        results = []
+        print(f"\n📚 RAG Vector Search Results (Cosmos DB VectorDistance) for: '{query}'")
+        for i, item in enumerate(items):
+            similarity_score = round(1 - item.get("SimilarityScore", 1.0), 4)
+            vector_distance = item.get("SimilarityScore", 1.0)
+            print(f"   [{i+1}] VectorDistance: {vector_distance:.4f} | Similarity: {similarity_score:.4f}")
+            print(f"       Content: {item.get('content', '')[:100]}...")
+            print(f"       Doc ID: {item.get('id', 'unknown')}")
+            results.append({
                 "content": item.get("content", ""),
                 "metadata": {
                     **item.get("metadata", {}),
-                    "relevance_score": round(1 - item.get("SimilarityScore", 1.0), 4),  # Convert distance to similarity
+                    "relevance_score": similarity_score,
                     "doc_id": item.get("id", "unknown")
                 }
-            }
-            for item in items
-        ]
+            })
 
         return results if results else [{"error": "No results found"}]
 

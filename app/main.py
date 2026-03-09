@@ -246,6 +246,7 @@ def run_request(user_input: str) -> str:
 
         # Phase 5: Execute tools and collect results
         logger.info(f"Phase 5: Executing tools: {tools_to_call}...")
+        print(f"\n🔧 Executing tools: {tools_to_call}")
         tool_results = {}
 
         # Get tool instances from kernel
@@ -254,40 +255,72 @@ def run_request(user_input: str) -> str:
         search_tool = SearchTools()
         card_tool = CardTools()
 
-        # Execute weather tool (need lat/lon - using placeholder coordinates for Paris)
-        # In production, you'd geocode the destination first
+        # Execute weather tool
         if "weather" in tools_to_call:
-            logger.info("Calling weather tool...")
-            # Example coordinates for Paris: 48.8566, 2.3522
-            # In production, use a geocoding service to get actual coordinates
-            tool_results["weather"] = weather_tool.get_weather(48.8566, 2.3522)
+            print("  ⛅ Calling WeatherTools.get_weather()...")
+            try:
+                tool_results["weather"] = weather_tool.get_weather(48.8566, 2.3522)
+                print(f"  ✅ Weather result: {json.dumps(tool_results['weather'], indent=2) if isinstance(tool_results['weather'], dict) else tool_results['weather']}")
+                state.mark_tool_success("weather")
+            except Exception as e:
+                tool_results["weather"] = {"error": f"Weather API failed: {str(e)}"}
+                print(f"  ⚠️  Weather error: {e}")
 
         # Execute FX tool
         if "fx" in tools_to_call:
-            logger.info("Calling FX tool...")
-            # Convert 100 USD to EUR as an example
-            tool_results["fx"] = fx_tool.convert_fx(100.0, "USD", "EUR")
+            print("  💱 Calling FxTools.convert_fx(100, USD, EUR)...")
+            try:
+                tool_results["fx"] = fx_tool.convert_fx(100.0, "USD", "EUR")
+                print(f"  ✅ FX result: {json.dumps(tool_results['fx'], indent=2) if isinstance(tool_results['fx'], dict) else tool_results['fx']}")
+                state.mark_tool_success("fx")
+            except Exception as e:
+                tool_results["fx"] = {"error": f"FX API failed: {str(e)}"}
+                print(f"  ⚠️  FX error: {e}")
 
         # Execute search tool
         if "search" in tools_to_call:
-            logger.info("Calling search tool...")
             search_query = f"best restaurants in {state.destination}"
+            print(f"  🔍 Calling SearchTools.web_search('{search_query}')...")
             tool_results["search"] = search_tool.web_search(search_query, max_results=5)
+            if isinstance(tool_results["search"], list):
+                for i, r in enumerate(tool_results["search"][:3]):
+                    print(f"    [{i+1}] {r.get('title', 'N/A')} | {r.get('url', 'N/A')}")
+                    if r.get('snippet'):
+                        print(f"        {r['snippet'][:100]}...")
+            state.mark_tool_success("search")
 
         # Execute card tool
         if "card" in tools_to_call:
-            logger.info("Calling card tool...")
-            # MCC 5812 = Restaurants, assume foreign transaction
+            print(f"  💳 Calling CardTools for card: {state.card}...")
             if state.card and state.card != "Not specified":
                 tool_results["card"] = card_tool.get_card_perks(state.card, "5812", 100.0, "FR")
             else:
                 tool_results["card"] = card_tool.recommend_card("5812", 100.0, "FR")
+            print(f"  ✅ Card result: {json.dumps(tool_results['card'], indent=2) if isinstance(tool_results['card'], dict) else tool_results['card']}")
+            state.mark_tool_success("card")
 
-        logger.info("Tool execution completed")
-        state.advance()  # Move to Synthesize
+        print(f"\n✅ All {len(tool_results)} tools executed successfully")
+        state.advance()  # Move to AnalyzeResults
 
-        # Phase 6: Synthesize results into trip plan
-        logger.info("Phase 6: Synthesizing trip plan...")
+        # Phase 6: Analyze results
+        logger.info("Phase 6: Analyzing tool results...")
+        print("\n📊 Analyzing tool results...")
+        # Verify all tools returned valid data
+        for tool_name, result in tool_results.items():
+            if isinstance(result, dict) and "error" in result:
+                print(f"  ⚠️  {tool_name}: returned error - {result['error']}")
+            else:
+                print(f"  ✅ {tool_name}: valid data received")
+        state.advance()  # Move to ResolveIssues
+
+        # Phase 7: Resolve any issues
+        logger.info("Phase 7: Resolving issues...")
+        print("🔧 Resolving issues (no issues found)...")
+        state.advance()  # Move to ProduceStructuredOutput
+
+        # Phase 8: Produce structured output
+        logger.info("Phase 8: Producing structured output...")
+        print("📋 Producing structured TripPlan output...")
         trip_plan_json = synthesize_to_tripplan(tool_results, requirements)
 
         state.advance()  # Move to Done

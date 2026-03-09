@@ -16,25 +16,17 @@ class FxTools:
         Returns:
             Dictionary containing conversion data with rates and converted amount
         """
-        try:
-            # Construct API URL with parameters
-            base_url = f"https://api.frankfurter.app/latest"
-            params = {
-                "amount": amount,
-                "from": base.upper(),
-                "to": target.upper()
-            }
+        # Construct API URL with parameters
+        base_url = "https://api.frankfurter.app/latest"
+        params = {
+            "amount": amount,
+            "from": base.upper(),
+            "to": target.upper()
+        }
 
-            # Make API request
-            response = requests.get(base_url, params=params, timeout=10)
-            response.raise_for_status()
+        # Make API request
+        response = requests.get(base_url, params=params, timeout=10)
+        response.raise_for_status()
 
-            # Return conversion data
-            return response.json()
-
-        except requests.exceptions.Timeout:
-            return {"error": "Currency conversion API request timed out"}
-        except requests.exceptions.RequestException as e:
-            return {"error": f"Currency conversion API request failed: {str(e)}"}
-        except Exception as e:
-            return {"error": f"Unexpected error converting currency: {str(e)}"}
+        # Return conversion data
+        return response.json()

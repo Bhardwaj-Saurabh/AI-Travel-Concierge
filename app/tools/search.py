@@ -8,6 +8,14 @@ import logging
 
 logger = logging.getLogger("search_tool")
 
+# Import AIProjectClient at module level for testability
+try:
+    from azure.ai.projects import AIProjectClient
+    from azure.identity import DefaultAzureCredential
+except ImportError:
+    AIProjectClient = None
+    DefaultAzureCredential = None
+
 
 class SearchTools:
     """Search tools using pre-configured Azure AI Agent with Bing grounding from AI Foundry."""
@@ -16,7 +24,9 @@ class SearchTools:
         """Initialize SearchTools with Azure AI Foundry Agent configuration."""
         self.project_endpoint = os.environ.get("PROJECT_ENDPOINT", "").strip('"')
         self.agent_id = os.environ.get("AGENT_ID", "")
+        self.bing_connection_id = os.environ.get("BING_CONNECTION_ID", "")
         logger.info(f"Initialized SearchTools with Azure AI Foundry Agent: {self.agent_id}")
+        logger.info(f"Bing Connection ID configured: {'Yes' if self.bing_connection_id else 'No'}")
 
     @kernel_function(name="web_search", description="Search the web using Azure AI Agent with Bing grounding for restaurants, attractions, and travel info")
     def web_search(self, query: str, max_results: int = 5):
@@ -30,13 +40,43 @@ class SearchTools:
         Returns:
             List of dictionaries containing search results with title, URL, and snippet
         """
-        # Try Azure AI Foundry Agent first
-        result = self._search_with_foundry_agent(query, max_results)
-        if result:
+        # Check configuration
+        if not self.project_endpoint or not self.agent_id:
+            logger.warning("PROJECT_ENDPOINT or AGENT_ID not configured")
+            return [{"title": "Missing configuration", "url": "", "snippet": "PROJECT_ENDPOINT or AGENT_ID not configured. Please set environment variables."}]
+
+        # Check SDK availability
+        if AIProjectClient is None:
+            logger.warning("Azure AI Projects SDK not available")
+            result = self._get_mock_results(query, max_results)
+            self._print_results(result, query, "(SDK not available, mock fallback)")
             return result
 
-        # Fallback to mock results if agent fails
-        return self._get_mock_results(query, max_results)
+        # Try Azure AI Foundry Agent
+        try:
+            result = self._search_with_foundry_agent(query, max_results)
+            if result:
+                self._print_results(result, query, "")
+                return result
+        except Exception as e:
+            logger.error(f"Search API error: {e}")
+            return [{"title": "Search error", "url": "", "snippet": f"Search failed: {str(e)}"}]
+
+        # Fallback to mock results
+        logger.info("Falling back to mock search results")
+        result = self._get_mock_results(query, max_results)
+        self._print_results(result, query, "(mock fallback)")
+        return result
+
+    def _print_results(self, result, query, suffix=""):
+        """Print search results to console for evidence."""
+        label = f"  🔍 Bing Search returned {len(result)} results for: '{query}' {suffix}".strip()
+        print(label)
+        for i, r in enumerate(result[:3]):
+            print(f"    [{i+1}] Title: {r.get('title', 'N/A')}")
+            print(f"        URL: {r.get('url', 'N/A')}")
+            if r.get('snippet'):
+                print(f"        Snippet: {r['snippet'][:120]}...")
 
     def _search_with_foundry_agent(self, query: str, max_results: int = 5):
         """
@@ -49,93 +89,78 @@ class SearchTools:
         Returns:
             List of search results or None if failed
         """
+        # Create AI Project client
+        client = AIProjectClient(
+            credential=DefaultAzureCredential(),
+            endpoint=self.project_endpoint
+        )
+
+        logger.info(f"Using existing Foundry Agent: {self.agent_id}")
+
+        # Create thread and run in one call with the search query
+        search_message = f"Search the web for: {query}. Return the top {max_results} results with title, URL, and a brief description for each."
+
+        # Import the thread creation options model
+        from azure.ai.agents.models import AgentThreadCreationOptions, ThreadMessageOptions
+
+        # Create thread options with the search message
+        thread_options = AgentThreadCreationOptions(
+            messages=[
+                ThreadMessageOptions(role="user", content=search_message)
+            ]
+        )
+
+        # Use create_thread_and_process_run for combined operation
+        run_result = client.agents.create_thread_and_process_run(
+            agent_id=self.agent_id,
+            thread=thread_options
+        )
+
+        # Check run status
+        if run_result.status == "failed":
+            logger.error(f"Agent run failed: {run_result.last_error}")
+            return None
+
+        # Get the response messages using the messages client
+        messages = client.agents.messages.list(thread_id=run_result.thread_id)
+
+        # Extract results from assistant response
+        results = []
+        for msg in messages:  # ItemPaged is an iterator
+            if msg.role == "assistant":
+                for content_item in msg.content:
+                    if hasattr(content_item, 'text'):
+                        text_content = content_item.text.value
+
+                        # Add the main response
+                        results.append({
+                            "title": f"Search results for: {query}",
+                            "url": "",
+                            "snippet": text_content[:500] if len(text_content) > 500 else text_content
+                        })
+
+                        # Extract citations/annotations if available
+                        if hasattr(content_item.text, 'annotations'):
+                            for annotation in content_item.text.annotations:
+                                if hasattr(annotation, 'url_citation'):
+                                    citation = annotation.url_citation
+                                    results.append({
+                                        "title": getattr(citation, 'title', 'Source'),
+                                        "url": getattr(citation, 'url', ''),
+                                        "snippet": ""
+                                    })
+
+        # Clean up thread
         try:
-            from azure.ai.projects import AIProjectClient
-            from azure.identity import DefaultAzureCredential
+            client.agents.threads.delete(run_result.thread_id)
+        except Exception:
+            pass
 
-            if not self.project_endpoint or not self.agent_id:
-                logger.warning("PROJECT_ENDPOINT or AGENT_ID not configured")
-                return None
+        if results:
+            logger.info(f"Found {len(results)} results from Foundry Agent")
+            return results[:max_results]
 
-            # Create AI Project client
-            client = AIProjectClient(
-                credential=DefaultAzureCredential(),
-                endpoint=self.project_endpoint
-            )
-
-            logger.info(f"Using existing Foundry Agent: {self.agent_id}")
-
-            # Create thread and run in one call with the search query
-            search_message = f"Search the web for: {query}. Return the top {max_results} results with title, URL, and a brief description for each."
-
-            # Import the thread creation options model
-            from azure.ai.agents.models import AgentThreadCreationOptions, ThreadMessageOptions
-
-            # Create thread options with the search message
-            thread_options = AgentThreadCreationOptions(
-                messages=[
-                    ThreadMessageOptions(role="user", content=search_message)
-                ]
-            )
-
-            # Use create_thread_and_process_run for combined operation
-            run_result = client.agents.create_thread_and_process_run(
-                agent_id=self.agent_id,
-                thread=thread_options
-            )
-
-            # Check run status
-            if run_result.status == "failed":
-                logger.error(f"Agent run failed: {run_result.last_error}")
-                return None
-
-            # Get the response messages using the messages client
-            messages = client.agents.messages.list(thread_id=run_result.thread_id)
-
-            # Extract results from assistant response
-            results = []
-            for msg in messages:  # ItemPaged is an iterator
-                if msg.role == "assistant":
-                    for content_item in msg.content:
-                        if hasattr(content_item, 'text'):
-                            text_content = content_item.text.value
-
-                            # Add the main response
-                            results.append({
-                                "title": f"Search results for: {query}",
-                                "url": "",
-                                "snippet": text_content[:500] if len(text_content) > 500 else text_content
-                            })
-
-                            # Extract citations/annotations if available
-                            if hasattr(content_item.text, 'annotations'):
-                                for annotation in content_item.text.annotations:
-                                    if hasattr(annotation, 'url_citation'):
-                                        citation = annotation.url_citation
-                                        results.append({
-                                            "title": getattr(citation, 'title', 'Source'),
-                                            "url": getattr(citation, 'url', ''),
-                                            "snippet": ""
-                                        })
-
-            # Clean up thread
-            try:
-                client.agents.threads.delete(run_result.thread_id)
-            except Exception:
-                pass
-
-            if results:
-                logger.info(f"Found {len(results)} results from Foundry Agent")
-                return results[:max_results]
-
-            return None
-
-        except ImportError as e:
-            logger.warning(f"Azure AI Projects SDK not available: {e}")
-            return None
-        except Exception as e:
-            logger.error(f"Azure AI Foundry Agent search failed: {e}")
-            return None
+        return None
 
     def _get_mock_results(self, query: str, max_results: int = 5):
         """

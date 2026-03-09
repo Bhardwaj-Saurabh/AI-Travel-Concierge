@@ -94,7 +94,7 @@ class TestAgentState:
         """Test that Phase enum has expected values"""
         # Test that enum values are unique and in order
         phases = list(Phase)
-        assert len(phases) == 8  # Updated to include all 8 phases
+        assert len(phases) == 15  # 8 core phases + 7 enhancement phases
         assert phases[0] == Phase.Init
         assert phases[1] == Phase.ClarifyRequirements
         assert phases[2] == Phase.PlanTools
@@ -313,23 +313,27 @@ class TestEnhancedAgentState:
         assert state.is_complete()
     
     def test_enhanced_state_advancement(self):
-        """Test enhanced state machine advancement"""
+        """Test enhanced state machine advancement through 8 core phases"""
         state = AgentState()
-        
-        # Test all phases
-        phases = list(Phase)
-        for i, expected_phase in enumerate(phases):
+
+        # Test the 8 core phases in order
+        core_phases = [
+            Phase.Init, Phase.ClarifyRequirements, Phase.PlanTools,
+            Phase.ExecuteTools, Phase.AnalyzeResults, Phase.ResolveIssues,
+            Phase.ProduceStructuredOutput, Phase.Done
+        ]
+        for i, expected_phase in enumerate(core_phases):
             if i == 0:
                 assert state.phase == expected_phase
             else:
                 can_advance = state.advance()
-                if i < len(phases) - 1:
-                    assert can_advance
-                    assert state.phase == expected_phase
-                else:
-                    # The last advance should return False and set phase to Done
-                    # Note: The advance() method returns True for the last transition to Done
-                    assert state.phase == Phase.Done
+                assert can_advance
+                assert state.phase == expected_phase
+
+        # At Done, advance should return False
+        can_advance = state.advance()
+        assert not can_advance
+        assert state.phase == Phase.Done
     
     def test_state_reset_enhanced(self):
         """Test enhanced state reset functionality"""

@@ -118,6 +118,7 @@ class CardTools:
                 "best": {
                     "card": matched,
                     "perk": perk,
+                    "benefit": perk,
                     "fx_fee": fx_text,
                     "estimated_value": f"${self._calculate_value(matched, card_data, mcc_category, amount, is_foreign):.2f}"
                 },
@@ -176,6 +177,7 @@ class CardTools:
                 "best": {
                     "card": best_card,
                     "perk": best_perk,
+                    "benefit": best_perk,
                     "fx_fee": fx_fee_text,
                     "estimated_value": f"${best_value:.2f}"
                 },

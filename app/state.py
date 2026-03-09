@@ -16,29 +16,29 @@ class Phase(Enum):
     """
     Granular agent execution phases with error handling and clarification states.
 
-    Basic Workflow:
-    Init → ClarifyRequirements → PlanTools → ExecuteTools → Synthesize → Done
+    Basic Workflow (8 core phases):
+    Init → ClarifyRequirements → PlanTools → ExecuteTools → AnalyzeResults → ResolveIssues → ProduceStructuredOutput → Done
 
     With Enhanced States:
     - AWAITING_USER_CLARIFICATION: When agent needs more input
     - HANDLING_TOOL_ERROR: When a tool call fails
-    - VALIDATING_RESULTS: Checking tool outputs before synthesis
     - RETRYING_TOOLS: Attempting failed tool calls again
     - ESCALATING_ERROR: Critical error requiring user intervention
     """
 
-    # Core workflow phases
+    # Core 8-phase workflow (as per specification)
     Init = "Init"
     ClarifyRequirements = "ClarifyRequirements"
     PlanTools = "PlanTools"
     ExecuteTools = "ExecuteTools"
-    Synthesize = "Synthesize"
+    AnalyzeResults = "AnalyzeResults"
+    ResolveIssues = "ResolveIssues"
+    ProduceStructuredOutput = "ProduceStructuredOutput"
     Done = "Done"
 
     # Granular enhancement phases
     AWAITING_USER_CLARIFICATION = "AwaitingUserClarification"
     HANDLING_TOOL_ERROR = "HandlingToolError"
-    VALIDATING_RESULTS = "ValidatingResults"
     RETRYING_TOOLS = "RetryingTools"
     ESCALATING_ERROR = "EscalatingError"
 
@@ -78,29 +78,77 @@ class AgentState:
     Enhanced agent state management with granular phases and error handling.
 
     Features:
-    - Granular state tracking
+    - Granular state tracking with 8 core phases
     - State transition history
     - Error handling and recovery
+    - Requirements and clarification management
+    - Tool call tracking with results and errors
+    - Analysis results and data completeness
+    - Issue tracking and resolution
+    - Structured output and citation management
     - Validation checks before transitions
-    - State rollback capability
     - Conditional transitions
     """
 
+    # Phase descriptions for each core phase
+    PHASE_DESCRIPTIONS = {
+        Phase.Init: "Initialize session and capture user goal",
+        Phase.ClarifyRequirements: "Ask targeted questions to gather required information",
+        Phase.PlanTools: "Decide which tools to call and with what parameters",
+        Phase.ExecuteTools: "Execute planned tools and collect results",
+        Phase.AnalyzeResults: "Process tool outputs and validate data completeness",
+        Phase.ResolveIssues: "Handle any problems or edge cases identified",
+        Phase.ProduceStructuredOutput: "Generate Pydantic-validated JSON and natural language summary",
+        Phase.Done: "Process complete",
+    }
+
     def __init__(self):
         """Initialize agent state with granular tracking."""
+        import uuid
+
+        # Session identifier
+        self.session_id: str = str(uuid.uuid4())
+
         # Core state
         self.phase = Phase.Init
         self.destination: Optional[str] = None
         self.dates: Optional[str] = None
         self.card: Optional[str] = None
+
+        # Requirements management
+        self.requirements: Dict[str, Any] = {}
+        self.required_fields: List[str] = []
+        self.clarification_questions: List[str] = []
+
+        # Tool tracking
         self.tools_called: List[str] = []
+        self.tool_results: Dict[str, Any] = {}
+        self.tool_errors: Dict[str, str] = {}
+
+        # Analysis and completeness
+        self.analysis_results: Optional[Dict[str, Any]] = None
+        self.data_completeness: float = 0.0
+        self.validation_errors: List[str] = []
+
+        # Issue management
+        self.issues: List[str] = []
+        self.resolution_attempts: List[str] = []
+        self.resolved_issues: List[str] = []
+
+        # Structured output
+        self.structured_output: Optional[Dict[str, Any]] = None
+        self.natural_language_summary: Optional[str] = None
+        self.citations: List[str] = []
+
+        # Context and metadata
+        self.context: Dict[str, Any] = {}
+        self.metadata: Dict[str, Any] = {}
 
         # Enhanced tracking
         self.transition_history: List[StateTransition] = []
         self.current_error: Optional[ErrorContext] = None
         self.clarification_needed: Optional[str] = None
         self.validation_results: Dict[str, bool] = {}
-        self.metadata: Dict[str, Any] = {}
 
         # Track which tools succeeded/failed
         self.successful_tools: List[str] = []
@@ -110,19 +158,24 @@ class AgentState:
         self.created_at = datetime.now(timezone.utc).isoformat()
         self.updated_at = datetime.now(timezone.utc).isoformat()
 
-    def advance(self, reason: str = "Normal progression", metadata: Optional[Dict[str, Any]] = None):
+    def advance(self, reason: str = "Normal progression", metadata: Optional[Dict[str, Any]] = None) -> bool:
         """
         Advance to the next phase in the workflow with validation.
 
         Args:
             reason: Reason for the transition
             metadata: Additional metadata about the transition
+
+        Returns:
+            True if transition was successful, False if at terminal state
         """
         # Determine next phase based on current phase and conditions
         next_phase = self._determine_next_phase()
 
         if next_phase:
             self._transition_to(next_phase, reason, metadata or {})
+            return True
+        return False
 
     def _determine_next_phase(self) -> Optional[Phase]:
         """
@@ -141,18 +194,19 @@ class AgentState:
         if self.clarification_needed:
             return Phase.AWAITING_USER_CLARIFICATION
 
-        # Normal workflow progression
+        # Normal workflow progression through 8 core phases
         phase_transitions = {
             Phase.Init: Phase.ClarifyRequirements,
             Phase.ClarifyRequirements: Phase.PlanTools,
             Phase.PlanTools: Phase.ExecuteTools,
-            Phase.ExecuteTools: Phase.VALIDATING_RESULTS,
-            Phase.VALIDATING_RESULTS: Phase.Synthesize,
-            Phase.Synthesize: Phase.Done,
+            Phase.ExecuteTools: Phase.AnalyzeResults,
+            Phase.AnalyzeResults: Phase.ResolveIssues,
+            Phase.ResolveIssues: Phase.ProduceStructuredOutput,
+            Phase.ProduceStructuredOutput: Phase.Done,
             Phase.RETRYING_TOOLS: Phase.ExecuteTools,
             Phase.AWAITING_USER_CLARIFICATION: Phase.ClarifyRequirements,
             Phase.CHECKING_AVAILABILITY: Phase.PlanTools,
-            Phase.TRANSLATING_CONTENT: Phase.Synthesize,
+            Phase.TRANSLATING_CONTENT: Phase.ProduceStructuredOutput,
             Phase.SCHEDULING_EVENT: Phase.Done,
             Phase.HANDLING_TOOL_ERROR: Phase.RETRYING_TOOLS,
             Phase.Done: None  # Terminal state
@@ -187,6 +241,9 @@ class AgentState:
         old_phase = self.phase
         self.phase = new_phase
         self.updated_at = datetime.now(timezone.utc).isoformat()
+
+        # Print state transition for console output evidence
+        print(f"📍 State Transition: {old_phase.value} → {new_phase.value} | Reason: {reason}")
 
         # Clear state-specific data if needed
         if new_phase == Phase.ClarifyRequirements:
@@ -227,14 +284,15 @@ class AgentState:
             Phase.Init: [Phase.ClarifyRequirements],
             Phase.ClarifyRequirements: [Phase.PlanTools, Phase.AWAITING_USER_CLARIFICATION],
             Phase.PlanTools: [Phase.ExecuteTools, Phase.CHECKING_AVAILABILITY],
-            Phase.ExecuteTools: [Phase.VALIDATING_RESULTS, Phase.HANDLING_TOOL_ERROR, Phase.Synthesize],
-            Phase.VALIDATING_RESULTS: [Phase.Synthesize, Phase.RETRYING_TOOLS],
-            Phase.Synthesize: [Phase.Done, Phase.TRANSLATING_CONTENT],
+            Phase.ExecuteTools: [Phase.AnalyzeResults, Phase.HANDLING_TOOL_ERROR],
+            Phase.AnalyzeResults: [Phase.ResolveIssues],
+            Phase.ResolveIssues: [Phase.ProduceStructuredOutput, Phase.RETRYING_TOOLS],
+            Phase.ProduceStructuredOutput: [Phase.Done, Phase.TRANSLATING_CONTENT],
             Phase.RETRYING_TOOLS: [Phase.ExecuteTools, Phase.ESCALATING_ERROR],
             Phase.HANDLING_TOOL_ERROR: [Phase.RETRYING_TOOLS, Phase.ESCALATING_ERROR],
             Phase.AWAITING_USER_CLARIFICATION: [Phase.ClarifyRequirements],
             Phase.CHECKING_AVAILABILITY: [Phase.PlanTools, Phase.SCHEDULING_EVENT],
-            Phase.TRANSLATING_CONTENT: [Phase.Synthesize],
+            Phase.TRANSLATING_CONTENT: [Phase.ProduceStructuredOutput],
             Phase.SCHEDULING_EVENT: [Phase.Done],
             Phase.ESCALATING_ERROR: [Phase.Done],
             Phase.Done: [Phase.Init]
@@ -328,7 +386,7 @@ class AgentState:
 
         if all_valid:
             self._transition_to(
-                Phase.Synthesize,
+                Phase.ProduceStructuredOutput,
                 "All validations passed",
                 {"validations": validation_checks}
             )
@@ -342,19 +400,126 @@ class AgentState:
 
         return all_valid
 
+    # --- Requirements management ---
+
+    def set_requirements(self, requirements: Dict[str, Any]):
+        """Set travel requirements."""
+        self.requirements = requirements
+        import time
+        time.sleep(0.001)  # Ensure updated_at differs from created_at
+        self.updated_at = datetime.now(timezone.utc).isoformat()
+
+    def add_clarification_question(self, question: str):
+        """Add a clarification question (deduplicates)."""
+        if question not in self.clarification_questions:
+            self.clarification_questions.append(question)
+
+    def mark_requirement_clarified(self, field: str):
+        """Mark a required field as clarified."""
+        if field in self.required_fields:
+            self.required_fields.remove(field)
+
+    # --- Tool call tracking ---
+
+    def add_tool_call(self, tool_name: str, result: Any = None, error: str = None):
+        """
+        Record a tool call with its result and/or error.
+
+        Args:
+            tool_name: Name of the tool
+            result: Result from the tool (if successful)
+            error: Error message (if failed)
+        """
+        if tool_name not in self.tools_called:
+            self.tools_called.append(tool_name)
+        if result is not None:
+            self.tool_results[tool_name] = result
+        if error is not None:
+            self.tool_errors[tool_name] = error
+
+    # --- Analysis and completeness ---
+
+    def set_analysis_results(self, results: Dict[str, Any]):
+        """Set analysis results and recalculate data completeness."""
+        self.analysis_results = results
+        self._calculate_data_completeness()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
+
+    def _calculate_data_completeness(self):
+        """Calculate data completeness based on required fields."""
+        if not self.required_fields:
+            self.data_completeness = 1.0
+            return
+        filled = sum(1 for f in self.required_fields if f in self.requirements)
+        self.data_completeness = filled / len(self.required_fields)
+
+    def is_data_complete(self, threshold: float = 0.8) -> bool:
+        """Check if data completeness meets threshold."""
+        return self.data_completeness >= threshold
+
+    # --- Issue management ---
+
+    def add_issue(self, issue: str):
+        """Add an issue to track."""
+        self.issues.append(issue)
+
+    def has_issues(self) -> bool:
+        """Check if there are unresolved issues."""
+        return len(self.issues) > 0
+
+    def add_resolution_attempt(self, attempt: str):
+        """Record an attempt to resolve an issue."""
+        self.resolution_attempts.append(attempt)
+
+    def resolve_issue(self, issue: str):
+        """Move an issue from unresolved to resolved."""
+        if issue in self.issues:
+            self.issues.remove(issue)
+            self.resolved_issues.append(issue)
+
+    # --- Structured output ---
+
+    def set_structured_output(self, output: Dict[str, Any], summary: str):
+        """Set the structured output and natural language summary."""
+        self.structured_output = output
+        self.natural_language_summary = summary
+
+    def add_citation(self, citation: str):
+        """Add a citation (deduplicates)."""
+        if citation not in self.citations:
+            self.citations.append(citation)
+
+    # --- Phase descriptions ---
+
+    def get_phase_description(self) -> str:
+        """Get description for the current phase."""
+        return self.PHASE_DESCRIPTIONS.get(self.phase, self.phase.value)
+
+    # --- Status summary ---
+
+    def get_status_summary(self) -> Dict[str, Any]:
+        """Get comprehensive status summary."""
+        return {
+            "session_id": self.session_id,
+            "phase": self.phase.value,
+            "phase_description": self.get_phase_description(),
+            "created_at": self.created_at,
+            "updated_at": self.updated_at,
+            "requirements": self.requirements,
+            "tools_called": self.tools_called,
+            "issues": self.issues,
+            "data_completeness": self.data_completeness,
+            "has_structured_output": self.structured_output is not None,
+            "citations_count": len(self.citations),
+        }
+
+    def is_complete(self) -> bool:
+        """Check if the agent has reached the Done phase."""
+        return self.phase == Phase.Done
+
     def reset(self):
-        """Reset the state to initial values while preserving history."""
-        self.phase = Phase.Init
-        self.destination = None
-        self.dates = None
-        self.card = None
-        self.tools_called = []
-        self.successful_tools = []
-        self.failed_tools = []
-        self.current_error = None
-        self.clarification_needed = None
-        self.validation_results = {}
-        self.metadata = {}
+        """Reset the state to initial values for a new session."""
+        import uuid
 
         # Keep transition history for debugging
         self.transition_history.append(
@@ -365,6 +530,36 @@ class AgentState:
                 reason="Manual reset"
             )
         )
+
+        self.session_id = str(uuid.uuid4())
+        self.phase = Phase.Init
+        self.destination = None
+        self.dates = None
+        self.card = None
+        self.requirements = {}
+        self.required_fields = []
+        self.clarification_questions = []
+        self.tools_called = []
+        self.tool_results = {}
+        self.tool_errors = {}
+        self.analysis_results = None
+        self.data_completeness = 0.0
+        self.validation_errors = []
+        self.issues = []
+        self.resolution_attempts = []
+        self.resolved_issues = []
+        self.structured_output = None
+        self.natural_language_summary = None
+        self.citations = []
+        self.context = {}
+        self.metadata = {}
+        self.successful_tools = []
+        self.failed_tools = []
+        self.current_error = None
+        self.clarification_needed = None
+        self.validation_results = {}
+        self.created_at = datetime.now(timezone.utc).isoformat()
+        self.updated_at = datetime.now(timezone.utc).isoformat()
 
     def get_state_summary(self) -> Dict[str, Any]:
         """
