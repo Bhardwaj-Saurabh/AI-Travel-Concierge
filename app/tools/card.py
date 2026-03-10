@@ -149,7 +149,7 @@ class CardTools:
         """
         # Print tool invocation for evidence
         print(f"\n{'='*60}")
-        print(f"🔧 TOOL INVOCATION: recommend_card")
+        print(f"[TOOL] TOOL INVOCATION: recommend_card")
         print(f"{'='*60}")
         print(f"   MCC Code: {mcc}")
         print(f"   Amount: ${amount}")
@@ -183,11 +183,11 @@ class CardTools:
             explanation = f"{best_card} offers {best_perk} for this transaction. {fx_fee_text}."
 
             # Print result for evidence
-            print(f"   ✅ Recommendation generated")
-            print(f"   💳 Best Card: {best_card}")
-            print(f"   🎁 Perk: {best_perk}")
-            print(f"   💰 Estimated Value: ${best_value:.2f}")
-            print(f"   🌍 FX Fee: {fx_fee_text}")
+            print(f"   [OK] Recommendation generated")
+            print(f"   [CARD] Best Card: {best_card}")
+            print(f"   [PERK] Perk: {best_perk}")
+            print(f"   [VALUE] Estimated Value: ${best_value:.2f}")
+            print(f"   [FX] FX Fee: {fx_fee_text}")
 
             return {
                 "best": {
@@ -203,5 +203,5 @@ class CardTools:
             }
 
         except Exception as e:
-            print(f"   ❌ Error: {e}")
+            print(f"   [ERROR] Error: {e}")
             return {"error": f"Error recommending card: {str(e)}"}

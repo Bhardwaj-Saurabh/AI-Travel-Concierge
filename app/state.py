@@ -243,7 +243,7 @@ class AgentState:
         self.updated_at = datetime.now(timezone.utc).isoformat()
 
         # Print state transition for console output evidence
-        print(f"📍 State Transition: {old_phase.value} → {new_phase.value} | Reason: {reason}")
+        print(f"[STATE] State Transition: {old_phase.value} -> {new_phase.value} | Reason: {reason}")
 
         # Clear state-specific data if needed
         if new_phase == Phase.ClarifyRequirements:

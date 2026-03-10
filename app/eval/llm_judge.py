@@ -9,6 +9,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass
 from semantic_kernel import Kernel
 from semantic_kernel.contents import ChatHistory
+from semantic_kernel.connectors.ai.open_ai import AzureChatCompletion
 
 logger = logging.getLogger(__name__)
 
@@ -113,17 +114,19 @@ class LLMJudge:
             )
             
             # Get LLM evaluation
-            chat_service = self.kernel.get_service(type="ChatCompletionService")
-            response = await chat_service.get_chat_message_contents(
-                chat_history=ChatHistory.from_messages([("user", evaluation_prompt)]),
-                settings={"temperature": 0.1, "max_tokens": 1000}
+            chat_service = self.kernel.get_service(type=AzureChatCompletion)
+            history = ChatHistory()
+            history.add_user_message(evaluation_prompt)
+            response = await chat_service.get_chat_message_content(
+                chat_history=history,
+                settings=self.kernel.get_prompt_execution_settings_from_service_id(chat_service.service_id)
             )
             
             # Parse evaluation result
-            evaluation_text = response[0].content.strip()
+            evaluation_text = str(response).strip()
             result = self._parse_evaluation_result(evaluation_text)
-            
-            logger.info(f"⚖️ Evaluation completed. Overall score: {result.overall_score:.2f}")
+
+            logger.info(f"[JUDGE] Evaluation completed. Overall score: {result.overall_score:.2f}")
             return result
             
         except Exception as e:
@@ -398,14 +401,16 @@ class LLMJudge:
             """
 
             # Get LLM corrections
-            chat_service = self.kernel.get_service(type="ChatCompletionService")
-            response = await chat_service.get_chat_message_contents(
-                chat_history=ChatHistory.from_messages([("user", correction_prompt)]),
-                settings={"temperature": 0.2, "max_tokens": 2000}
+            chat_service = self.kernel.get_service(type=AzureChatCompletion)
+            history = ChatHistory()
+            history.add_user_message(correction_prompt)
+            response = await chat_service.get_chat_message_content(
+                chat_history=history,
+                settings=self.kernel.get_prompt_execution_settings_from_service_id(chat_service.service_id)
             )
 
             # Parse corrections
-            corrections_text = response[0].content.strip()
+            corrections_text = str(response).strip()
             corrections = self._parse_json_response(corrections_text)
 
             logger.info("🔧 Corrections generated successfully")
@@ -495,14 +500,16 @@ class LLMJudge:
             """
 
             # Get LLM suggestions
-            chat_service = self.kernel.get_service(type="ChatCompletionService")
-            response = await chat_service.get_chat_message_contents(
-                chat_history=ChatHistory.from_messages([("user", suggestion_prompt)]),
-                settings={"temperature": 0.3, "max_tokens": 1500}
+            chat_service = self.kernel.get_service(type=AzureChatCompletion)
+            history = ChatHistory()
+            history.add_user_message(suggestion_prompt)
+            response = await chat_service.get_chat_message_content(
+                chat_history=history,
+                settings=self.kernel.get_prompt_execution_settings_from_service_id(chat_service.service_id)
             )
 
             # Parse suggestions
-            suggestions_text = response[0].content.strip()
+            suggestions_text = str(response).strip()
             suggestions = self._parse_json_response(suggestions_text)
 
             logger.info(f"🔍 Tool suggestions generated: {len(suggestions.get('missing_tools', []))} missing tools identified")
@@ -598,14 +605,16 @@ class LLMJudge:
             """
 
             # Get LLM debugging insights
-            chat_service = self.kernel.get_service(type="ChatCompletionService")
-            response = await chat_service.get_chat_message_contents(
-                chat_history=ChatHistory.from_messages([("user", debug_prompt)]),
-                settings={"temperature": 0.2, "max_tokens": 2000}
+            chat_service = self.kernel.get_service(type=AzureChatCompletion)
+            history = ChatHistory()
+            history.add_user_message(debug_prompt)
+            response = await chat_service.get_chat_message_content(
+                chat_history=history,
+                settings=self.kernel.get_prompt_execution_settings_from_service_id(chat_service.service_id)
             )
 
             # Parse debugging insights
-            debug_text = response[0].content.strip()
+            debug_text = str(response).strip()
             debug_insights = self._parse_json_response(debug_text)
 
             logger.info("🐛 Debugging insights generated successfully")

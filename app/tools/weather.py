@@ -17,7 +17,7 @@ class WeatherTools:
         """
         # Print tool invocation for evidence
         print(f"\n{'='*60}")
-        print(f"🔧 TOOL INVOCATION: get_weather")
+        print(f"[TOOL] TOOL INVOCATION: get_weather")
         print(f"{'='*60}")
         print(f"   Latitude: {lat}")
         print(f"   Longitude: {lon}")
@@ -40,13 +40,13 @@ class WeatherTools:
 
             # Parse and display results for evidence
             data = response.json()
-            print(f"   ✅ API Response received")
+            print(f"   [OK] API Response received")
             if 'daily' in data:
                 temps = data['daily'].get('temperature_2m_max', [])
-                print(f"   🌡️  Temperature forecast (max): {temps[:3]}...")
-            print(f"   📍 Timezone: {data.get('timezone', 'N/A')}")
+                print(f"   [TEMP] Temperature forecast (max): {temps[:3]}...")
+            print(f"   [LOC] Timezone: {data.get('timezone', 'N/A')}")
 
             return data
         except Exception as e:
-            print(f"   ❌ Error: {e}")
+            print(f"   [ERROR] Error: {e}")
             return {"error": f"Unexpected error: {str(e)}"}

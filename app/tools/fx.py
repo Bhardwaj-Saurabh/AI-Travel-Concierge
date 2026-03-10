@@ -18,7 +18,7 @@ class FxTools:
         """
         # Print tool invocation for evidence
         print(f"\n{'='*60}")
-        print(f"🔧 TOOL INVOCATION: convert_fx")
+        print(f"[TOOL] TOOL INVOCATION: convert_fx")
         print(f"{'='*60}")
         print(f"   Amount: {amount}")
         print(f"   Base Currency: {base.upper()}")
@@ -40,11 +40,11 @@ class FxTools:
 
             # Parse and display results for evidence
             data = response.json()
-            print(f"   ✅ API Response received")
-            print(f"   💱 Exchange Rate: 1 {base.upper()} = {data.get('rates', {}).get(target.upper(), 'N/A')} {target.upper()}")
-            print(f"   📅 Date: {data.get('date', 'N/A')}")
+            print(f"   [OK] API Response received")
+            print(f"   [FX] Exchange Rate: 1 {base.upper()} = {data.get('rates', {}).get(target.upper(), 'N/A')} {target.upper()}")
+            print(f"   [DATE] Date: {data.get('date', 'N/A')}")
 
             return data
         except Exception as e:
-            print(f"   ❌ Error: {e}")
+            print(f"   [ERROR] Error: {e}")
             return {"error": f"Unexpected error: {str(e)}"}

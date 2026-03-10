@@ -50,7 +50,7 @@ def evaluate(case):
         Dictionary with evaluation results
     """
     print(f"\n{'='*60}")
-    print(f"📝 Evaluating: {case['name']}")
+    print(f"[TEST] Evaluating: {case['name']}")
     print(f"{'='*60}")
 
     start_time = time.time()
@@ -62,7 +62,7 @@ def evaluate(case):
 
         agent_response = run_request(query)
         latency = time.time() - start_time
-        print(f"   ⏱️  Agent latency: {latency:.2f}s")
+        print(f"   [TIME] Agent latency: {latency:.2f}s")
 
         # Step 2: Parse the JSON response
         try:
@@ -75,9 +75,9 @@ def evaluate(case):
             else:
                 plan_dict = plan_data
             valid_json = True
-            print(f"   ✅ Valid JSON response")
+            print(f"   [OK] Valid JSON response")
         except json.JSONDecodeError as e:
-            print(f"   ❌ Invalid JSON: {e}")
+            print(f"   [ERROR] Invalid JSON: {e}")
             valid_json = False
             plan_dict = {}
 
@@ -87,9 +87,9 @@ def evaluate(case):
             try:
                 trip_plan = TripPlan(**plan_dict)
                 pydantic_valid = True
-                print(f"   ✅ Pydantic validation passed")
+                print(f"   [OK] Pydantic validation passed")
             except (ValidationError, Exception) as e:
-                print(f"   ⚠️  Pydantic validation: {e}")
+                print(f"   [WARN] Pydantic validation: {e}")
 
         # Step 4: Check for required fields
         has_weather = bool(plan_dict.get("weather"))
@@ -103,12 +103,12 @@ def evaluate(case):
             card_data = plan_dict.get("card_recommendation", {})
             card_mentioned = bool(card_data.get("card", ""))
 
-        print(f"   Weather data: {'✅' if has_weather else '❌'}")
-        print(f"   Search results: {'✅' if has_results else '❌'}")
-        print(f"   Card recommendation: {'✅' if has_card else '❌'}")
-        print(f"   Currency info: {'✅' if has_currency else '❌'}")
-        print(f"   Citations: {'✅' if has_citations else '❌'}")
-        print(f"   Next steps: {'✅' if has_next_steps else '❌'}")
+        print(f"   Weather data: {'[OK]' if has_weather else '[X]'}")
+        print(f"   Search results: {'[OK]' if has_results else '[X]'}")
+        print(f"   Card recommendation: {'[OK]' if has_card else '[X]'}")
+        print(f"   Currency info: {'[OK]' if has_currency else '[X]'}")
+        print(f"   Citations: {'[OK]' if has_citations else '[X]'}")
+        print(f"   Next steps: {'[OK]' if has_next_steps else '[X]'}")
 
         # Step 5: Run LLM Judge evaluation
         llm_score = None
@@ -140,12 +140,12 @@ def evaluate(case):
 
             llm_score = eval_result.overall_score
             criteria_scores = eval_result.criteria_scores
-            print(f"\n   ⚖️  LLM Judge Score: {llm_score:.2f}/5.0 ({'PASS' if eval_result.passed else 'FAIL'})")
+            print(f"\n   [JUDGE] LLM Judge Score: {llm_score:.2f}/5.0 ({'PASS' if eval_result.passed else 'FAIL'})")
             for criterion, score in criteria_scores.items():
                 print(f"      {criterion}: {score}/5.0")
 
         except Exception as e:
-            print(f"   ⚠️  LLM Judge evaluation error: {e}")
+            print(f"   [WARN] LLM Judge evaluation error: {e}")
 
         return {
             "valid_json": valid_json,
@@ -163,7 +163,7 @@ def evaluate(case):
         }
 
     except (ValidationError, Exception) as e:
-        print(f"   ❌ Failed to evaluate: {e}")
+        print(f"   [ERROR] Failed to evaluate: {e}")
         return {
             "valid_json": False,
             "pydantic_valid": False,
@@ -185,7 +185,7 @@ def main():
     Main evaluation function that runs all test cases and prints numerical scores.
     """
     print("=" * 60)
-    print("🏁 AI Travel Concierge - LLM Judge Evaluation")
+    print("[START] AI Travel Concierge - LLM Judge Evaluation")
     print("=" * 60)
 
     results = []
@@ -211,7 +211,7 @@ def main():
 
     # Print summary
     print("\n" + "=" * 60)
-    print("📊 EVALUATION SUMMARY")
+    print("[SUMMARY] EVALUATION SUMMARY")
     print("=" * 60)
 
     total_cases = len(results)
@@ -238,7 +238,7 @@ def main():
         max_score = max(llm_scores)
         pass_count = sum(1 for s in llm_scores if s >= 3.0)
 
-        print(f"\n  📈 LLM Judge Scores:")
+        print(f"\n  [SCORES] LLM Judge Scores:")
         print(f"    Average score:       {avg_score:.2f}/5.0")
         print(f"    Min score:           {min_score:.2f}/5.0")
         print(f"    Max score:           {max_score:.2f}/5.0")
@@ -253,7 +253,7 @@ def main():
                 all_criteria[criterion].append(float(score))
 
         if all_criteria:
-            print(f"\n  📊 Per-Criterion Averages:")
+            print(f"\n  [CRITERIA] Per-Criterion Averages:")
             for criterion, scores in all_criteria.items():
                 avg = sum(scores) / len(scores)
                 print(f"    {criterion:20s}: {avg:.2f}/5.0")
@@ -261,10 +261,10 @@ def main():
     # Latency
     latencies = [r["latency_s"] for r in results]
     avg_latency = sum(latencies) / len(latencies)
-    print(f"\n  ⏱️  Average latency:    {avg_latency:.2f}s")
+    print(f"\n  [TIME] Average latency:    {avg_latency:.2f}s")
 
     print("\n" + "=" * 60)
-    print("✅ Evaluation complete. Results saved to app/eval/results.csv")
+    print("[DONE] Evaluation complete. Results saved to app/eval/results.csv")
     print("=" * 60)
 
 

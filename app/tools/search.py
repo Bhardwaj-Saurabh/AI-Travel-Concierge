@@ -42,7 +42,7 @@ class SearchTools:
         """
         # Print tool invocation for evidence
         print(f"\n{'='*60}")
-        print(f"🔧 TOOL INVOCATION: web_search")
+        print(f"[TOOL] TOOL INVOCATION: web_search")
         print(f"{'='*60}")
         print(f"   Query: {query}")
         print(f"   Max Results: {max_results}")
@@ -58,7 +58,7 @@ class SearchTools:
         # Validate BING_CONNECTION_ID is configured for Bing grounding
         if not self.bing_connection_id:
             logger.warning("BING_CONNECTION_ID not configured - Bing grounding may not work properly")
-            print(f"   ⚠️  Warning: BING_CONNECTION_ID not set")
+            print(f"   [WARN] Warning: BING_CONNECTION_ID not set")
 
         # Check SDK availability
         if AIProjectClient is None:
@@ -85,7 +85,7 @@ class SearchTools:
 
     def _print_results(self, result, query, suffix=""):
         """Print search results to console for evidence."""
-        label = f"  🔍 Bing Search returned {len(result)} results for: '{query}' {suffix}".strip()
+        label = f"  [SEARCH] Bing Search returned {len(result)} results for: '{query}' {suffix}".strip()
         print(label)
         for i, r in enumerate(result[:3]):
             print(f"    [{i+1}] Title: {r.get('title', 'N/A')}")
@@ -111,9 +111,9 @@ class SearchTools:
         )
 
         # Log Bing connection usage
-        print(f"   🌐 Connecting to Azure AI Foundry...")
-        print(f"   📡 Agent ID: {self.agent_id}")
-        print(f"   🔗 Bing Connection: {self.bing_connection_id}")
+        print(f"   [NET] Connecting to Azure AI Foundry...")
+        print(f"   [AGENT] Agent ID: {self.agent_id}")
+        print(f"   [BING] Bing Connection: {self.bing_connection_id}")
         logger.info(f"Using existing Foundry Agent: {self.agent_id} with Bing Connection: {self.bing_connection_id}")
 
         # Create thread and run in one call with the search query

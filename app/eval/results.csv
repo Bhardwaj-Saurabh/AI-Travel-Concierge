@@ -1,4 +1,4 @@
-destination,travel_dates,card,valid_json,has_citations,card_mentioned
-Paris,2026-06-01 to 2026-06-08,BankGold,True,True,True
-Tokyo,2026-07-10 to 2026-07-17,BankGold,True,True,True
-Barcelona,2026-08-15 to 2026-08-22,BankGold,True,True,True
+name,destination,valid_json,pydantic_valid,has_weather,has_results,has_card,has_currency,has_citations,has_next_steps,card_mentioned,latency_s,llm_score
+Test 1 - Paris Trip,Paris,True,True,True,True,True,True,True,True,True,17.26,4.3
+Test 2 - Tokyo Trip,Tokyo,True,True,True,True,True,True,True,True,True,15.94,3.7
+Test 3 - Barcelona Trip,Barcelona,True,True,True,True,True,True,True,True,True,17.9,3.5

@@ -38,20 +38,27 @@ async def embed_texts_async(texts: List[str], embedding_service: AzureTextEmbedd
     Returns:
         List of embedding vectors (each vector is a list of floats)
     """
+    # Embedding dimension for text-embedding-3-large is 3072
+    EMBED_DIMENSION = 3072
     embeddings = []
 
     for text in texts:
         try:
             # Generate embedding for single text
             result = await embedding_service.generate_embeddings([text])
-            if result and len(result) > 0:
-                embeddings.append(result[0])
+            # Check if result has content (handle numpy arrays properly)
+            if result is not None and len(result) > 0:
+                # Convert to list if numpy array
+                embedding = result[0]
+                if hasattr(embedding, 'tolist'):
+                    embedding = embedding.tolist()
+                embeddings.append(embedding)
             else:
                 logger.warning(f"No embedding generated for text: {text[:50]}...")
-                embeddings.append([0.0] * 1536)  # Fallback to zero vector (dimension 1536 for text-embedding-3-small)
+                embeddings.append([0.0] * EMBED_DIMENSION)
         except Exception as e:
             logger.error(f"Error generating embedding: {e}")
-            embeddings.append([0.0] * 1536)
+            embeddings.append([0.0] * EMBED_DIMENSION)
 
     return embeddings
 

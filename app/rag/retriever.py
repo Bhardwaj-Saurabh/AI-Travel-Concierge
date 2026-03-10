@@ -109,7 +109,7 @@ def retrieve(query: str, k: int = 5) -> List[Dict[str, Any]]:
 
         # Print VectorDistance scores for console output evidence
         print(f"\n{'='*60}")
-        print(f"🔧 RAG KNOWLEDGE RETRIEVAL")
+        print(f"[RAG] RAG KNOWLEDGE RETRIEVAL")
         print(f"{'='*60}")
         print(f"   Query: '{query}'")
         print(f"   Documents searched: {len(items)}")
@@ -206,7 +206,7 @@ def retrieve_with_cosmos_vector_search(query: str, k: int = 5) -> List[Dict[str,
         # Format results
         results = []
         print(f"\n{'='*60}")
-        print(f"🔧 RAG KNOWLEDGE RETRIEVAL (Cosmos DB VectorDistance)")
+        print(f"[RAG] RAG KNOWLEDGE RETRIEVAL (Cosmos DB VectorDistance)")
         print(f"{'='*60}")
         print(f"   Query: '{query}'")
         for i, item in enumerate(items):
